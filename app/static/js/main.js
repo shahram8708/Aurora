@@ -86,6 +86,160 @@ document.addEventListener('DOMContentLoaded', () => {
     return block;
   }
 
+  const escapeHtml = (unsafe = '') => String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  let dmShareModal;
+  let dmShareList;
+  let dmShareSearch;
+  let dmShareStatus;
+  let dmShareNote;
+  let dmShareTarget = null; // { type: 'post' | 'reel', id: string }
+  let dmSearchTimer = null;
+
+  const setDmStatus = (msg, isError = false) => {
+    if (!dmShareStatus) return;
+    dmShareStatus.textContent = msg || '';
+    dmShareStatus.classList.toggle('text-danger', !!isError);
+  };
+
+  const sharePostToUser = async (user) => {
+    if (!dmShareTarget || !dmShareTarget.id || !user?.id) return;
+    const endpoint = dmShareTarget.type === 'reel'
+      ? `/reels/${dmShareTarget.id}/share/dm`
+      : `/engagement/share/dm/${dmShareTarget.id}`;
+    setDmStatus(`Sending to @${user.username}…`);
+    try {
+      const resp = await handle(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+          receiver_id: user.id,
+          note: dmShareNote?.value || '',
+        }),
+      });
+      setDmStatus('Sent! Opening chat…');
+      if (resp?.conversation_id) {
+        dmShareModal?.hide();
+        window.location.href = `/messaging/conversations/${resp.conversation_id}/view`;
+      } else {
+        setDmStatus('Shared, but could not open chat.', true);
+      }
+    } catch (err) {
+      setDmStatus(err.message || 'Unable to send right now', true);
+    }
+  };
+
+  const buildRecipientRow = (user) => {
+    const badgeLabel = user.is_following && user.is_follower ? 'Mutual' : user.is_following ? 'Following' : user.is_follower ? 'Follower' : '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'list-group-item list-group-item-action d-flex align-items-center justify-content-between';
+    const avatar = user.avatar
+      ? `<img src="${escapeHtml(user.avatar)}" alt="" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">`
+      : `<div class="rounded-circle bg-light border d-flex align-items-center justify-content-center" style="width:36px;height:36px;">
+           <span class="text-muted fw-semibold">${escapeHtml((user.username || '?')[0] || '?').toUpperCase()}</span>
+         </div>`;
+    btn.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        ${avatar}
+        <div class="text-start">
+          <div class="fw-semibold mb-0">${escapeHtml(user.name || user.username)}</div>
+          <div class="text-muted small">@${escapeHtml(user.username)}</div>
+        </div>
+      </div>
+      ${badgeLabel ? `<span class="badge bg-secondary">${badgeLabel}</span>` : ''}
+    `;
+    btn.addEventListener('click', () => sharePostToUser(user));
+    return btn;
+  };
+
+  const ensureShareDmModal = () => {
+    if (!document.getElementById('shareDmModal')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="modal fade" id="shareDmModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-send"></i><span>Share via DM</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label class="form-label mb-1 small text-uppercase text-muted">Add a message (optional)</label>
+                  <textarea class="form-control" id="share-dm-note" rows="2" placeholder="Say something about this post"></textarea>
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                  <span class="input-group-text"><i class="bi bi-search"></i></span>
+                  <input type="search" class="form-control" id="share-dm-search" placeholder="Search followers">
+                  <button class="btn btn-outline-secondary" type="button" id="share-dm-refresh" aria-label="Refresh list"><i class="bi bi-arrow-repeat"></i></button>
+                </div>
+                <div class="small text-muted mb-2" id="share-dm-status"></div>
+                <div class="list-group" id="share-dm-list" style="max-height:320px;overflow-y:auto;">
+                  <div class="text-center text-muted py-3">Loading followers…</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+    const modalEl = document.getElementById('shareDmModal');
+    dmShareModal = dmShareModal || new bootstrap.Modal(modalEl);
+    dmShareList = dmShareList || modalEl.querySelector('#share-dm-list');
+    dmShareSearch = dmShareSearch || modalEl.querySelector('#share-dm-search');
+    dmShareStatus = dmShareStatus || modalEl.querySelector('#share-dm-status');
+    dmShareNote = dmShareNote || modalEl.querySelector('#share-dm-note');
+
+    modalEl.addEventListener('shown.bs.modal', () => dmShareSearch?.focus());
+    const refreshBtn = modalEl.querySelector('#share-dm-refresh');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = 'true';
+      refreshBtn.addEventListener('click', () => loadDmRecipients(dmShareSearch?.value || ''));
+    }
+    if (dmShareSearch && !dmShareSearch.dataset.bound) {
+      dmShareSearch.dataset.bound = 'true';
+      dmShareSearch.addEventListener('input', (e) => {
+        const term = e.target.value || '';
+        clearTimeout(dmSearchTimer);
+        dmSearchTimer = setTimeout(() => loadDmRecipients(term), 200);
+      });
+    }
+    return dmShareModal;
+  };
+
+  const loadDmRecipients = async (term = '') => {
+    ensureShareDmModal();
+    if (!dmShareList) return;
+    dmShareList.innerHTML = '<div class="text-center text-muted py-3">Loading followers…</div>';
+    try {
+      const qs = term ? `?q=${encodeURIComponent(term)}` : '';
+      const data = await handle(`/engagement/share/dm/recipients${qs}`, { method: 'GET' });
+      const results = data?.results || [];
+      if (!results.length) {
+        dmShareList.innerHTML = '<div class="text-center text-muted py-3">No followers available yet.</div>';
+        return;
+      }
+      dmShareList.innerHTML = '';
+      results.forEach((u) => dmShareList.appendChild(buildRecipientRow(u)));
+      setDmStatus('Tap a name to share.');
+    } catch (err) {
+      dmShareList.innerHTML = `<div class="text-center text-danger py-3">${escapeHtml(err.message || 'Unable to load followers')}</div>`;
+    }
+  };
+
+  const openShareDmModal = (target) => {
+    dmShareTarget = target;
+    ensureShareDmModal();
+    if (dmShareNote) dmShareNote.value = '';
+    setDmStatus('Select a follower to share.');
+    loadDmRecipients(dmShareSearch?.value || '');
+    dmShareModal?.show();
+  };
+
   document.body.addEventListener('click', async (e) => {
     console.debug('[engagement] body click handler running', { target: e.target?.className });
     const likeBtn = e.target.closest('.like-btn');
@@ -147,12 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (shareDmBtn) {
+      e.preventDefault();
       const postId = shareDmBtn.dataset.postId;
-      const receiver = prompt('Send to username');
-      if (receiver) {
-        await handle(`/engagement/share/dm/${postId}`, { method: 'POST', body: JSON.stringify({ receiver }) });
-        shareDmBtn.classList.add('btn-success');
-      }
+      openShareDmModal({ type: 'post', id: postId });
       return;
     }
     if (deleteCommentBtn) {
@@ -727,6 +878,9 @@ document.addEventListener('DOMContentLoaded', () => {
               navigator.clipboard.writeText(shareUrl).catch(() => {});
             }
           }
+        }
+        if (action === 'share-dm') {
+          openShareDmModal({ type: 'reel', id: reelId });
         }
         if (action === 'comment' && commentModal) {
           commentSubmit.dataset.reelId = reelId;

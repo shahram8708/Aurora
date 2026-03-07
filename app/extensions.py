@@ -226,6 +226,19 @@ class LocalRedisCache:
         # In-memory dev mode just acknowledges the publish.
         return 1
 
+    def zincrby(self, key: str, amount: float, member: object):
+        if self._expired(key):
+            self._store.pop(key, None)
+        entry = self._store.get(key)
+        if entry and isinstance(entry[0], dict):
+            current, expires_at = dict(entry[0]), entry[1]
+        else:
+            current, expires_at = {}, entry[1] if entry else None
+        score = float(current.get(member, 0)) + float(amount)
+        current[member] = score
+        self._store[key] = (current, expires_at)
+        return score
+
 
 # Redis client factory
 def init_redis_client(url: str | None, enabled: bool = True):

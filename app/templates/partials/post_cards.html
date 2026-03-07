@@ -70,14 +70,14 @@
         {% endif %}
       </div>
     {% endif %}
+    {% set share_url = url_for('sharing.view_public', post_id=post.id, _external=True) if post.id else '' %}
     <div class="card-body">
       <div class="d-flex align-items-center gap-3 mb-2">
         <button class="btn btn-sm btn-outline-light like-btn" data-post-id="{{ post.id }}">❤️</button>
         <button class="btn btn-sm btn-outline-light save-btn" data-post-id="{{ post.id }}">💾</button>
         <button class="btn btn-sm btn-outline-light comment-btn" data-post-id="{{ post.id }}">💬</button>
         <button class="btn btn-sm btn-outline-light share-story" data-post-id="{{ post.id }}">📲</button>
-        <button class="btn btn-sm btn-outline-light share-dm" data-post-id="{{ post.id }}">📨</button>
-        {% set share_url = url_for('sharing.view_public', post_id=post.id, _external=True) if post.id else '' %}
+        <button class="btn btn-sm btn-outline-light share-dm" data-post-id="{{ post.id }}" data-share-url="{{ share_url }}">📨</button>
         <a class="btn btn-sm btn-outline-light" href="{{ url_for('posts.view_post', post_id=post.id) }}" aria-label="Open post">
           <i class="bi bi-box-arrow-up-right"></i>
         </a>

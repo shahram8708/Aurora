@@ -116,6 +116,7 @@
               <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('posts.create') }}">Create Post</a>
               <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.list_my') }}">My Stories</a>
               <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.create') }}">Create Story</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('reels.create') }}">Create Reel</a>
               <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.highlights') }}">Highlights</a>
               <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('reels.reel_feed') }}">Reels</a>
             </div>
@@ -245,6 +246,7 @@
         <a class="list-group-item list-group-item-action" href="{{ url_for('posts.create') }}" data-bs-dismiss="offcanvas">Create Post</a>
         <a class="list-group-item list-group-item-action" href="{{ url_for('stories.list_my') }}" data-bs-dismiss="offcanvas">My Stories</a>
         <a class="list-group-item list-group-item-action" href="{{ url_for('stories.create') }}" data-bs-dismiss="offcanvas">Create Story</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('reels.create') }}" data-bs-dismiss="offcanvas">Create Reel</a>
         <a class="list-group-item list-group-item-action" href="{{ url_for('stories.highlights') }}" data-bs-dismiss="offcanvas">Highlights</a>
         <a class="list-group-item list-group-item-action" href="{{ url_for('reels.reel_feed') }}" data-bs-dismiss="offcanvas">Reels</a>
 
@@ -302,7 +304,7 @@
     <div class="container-fluid justify-content-around">
       <a class="nav-link text-center" href="{{ url_for('feed.home') }}" aria-label="Home"><i class="bi bi-house-door fs-4"></i><span class="visually-hidden">Home</span></a>
       <a class="nav-link text-center" href="{{ url_for('explore.explore_home') }}" aria-label="Explore"><i class="bi bi-search fs-4"></i><span class="visually-hidden">Explore</span></a>
-      <a class="nav-link text-center" href="{{ url_for('posts.create') }}" aria-label="Create"><i class="bi bi-plus-circle fs-4"></i><span class="visually-hidden">Create</span></a>
+      <a class="nav-link text-center" href="#" role="button" data-bs-toggle="offcanvas" data-bs-target="#createMenuSheet" aria-controls="createMenuSheet" aria-label="Create"><i class="bi bi-plus-circle fs-4"></i><span class="visually-hidden">Create</span></a>
       <a class="nav-link text-center" href="{{ url_for('reels.reel_feed') }}" aria-label="Reels"><i class="bi bi-camera-reels fs-4"></i><span class="visually-hidden">Reels</span></a>
       {% if current_user is defined and current_user.is_authenticated %}
       <a class="nav-link text-center" href="{{ url_for('users.profile') }}" aria-label="Profile"><i class="bi bi-person-circle fs-4"></i><span class="visually-hidden">Profile</span></a>
@@ -311,6 +313,31 @@
       {% endif %}
     </div>
   </nav>
+  <div class="offcanvas offcanvas-bottom border-0 rounded-top-4 shadow create-sheet" tabindex="-1" id="createMenuSheet" aria-labelledby="createMenuLabel" style="height: auto;">
+    <div class="offcanvas-header pb-2">
+      <div>
+        <div class="fw-bold" id="createMenuLabel">Create</div>
+        <small class="text-muted">Share a post, story, or reel</small>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+      <div class="d-grid gap-2">
+        <a class="btn btn-primary d-flex align-items-center justify-content-between" href="{{ url_for('posts.create') }}">
+          <span><i class="bi bi-pencil-square me-2"></i>Create Post</span>
+          <i class="bi bi-chevron-right"></i>
+        </a>
+        <a class="btn btn-outline-secondary d-flex align-items-center justify-content-between" href="{{ url_for('stories.create') }}">
+          <span><i class="bi bi-camera me-2"></i>Create Story</span>
+          <i class="bi bi-chevron-right"></i>
+        </a>
+        <a class="btn btn-outline-secondary d-flex align-items-center justify-content-between" href="{{ url_for('reels.create') }}">
+          <span><i class="bi bi-camera-reels me-2"></i>Create Reel</span>
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}?v=eng-debug2"></script>
   <script src="{{ url_for('static', filename='js/realtime.js') }}"></script>

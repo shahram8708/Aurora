@@ -24,6 +24,7 @@
       <button type="button" class="reel-action" data-action="like" aria-label="Like" data-reel-id="{{ reel.id }}"><i class="bi bi-heart-fill me-1" aria-hidden="true"></i><span class="reel-like-count" data-reel-id="{{ reel.id }}">{{ reel.insights.like_count if reel.insights else 0 }}</span></button>
       <button type="button" class="reel-action" data-action="comment" aria-label="Comments" data-reel-id="{{ reel.id }}"><i class="bi bi-chat-dots-fill me-1" aria-hidden="true"></i><span>{{ reel.insights.comment_count if reel.insights else 0 }}</span></button>
       <button type="button" class="reel-action" data-action="share" aria-label="Share" data-reel-id="{{ reel.id }}"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+      <button type="button" class="reel-action" data-action="share-dm" aria-label="Share via DM" data-reel-id="{{ reel.id }}"><i class="bi bi-send-plus" aria-hidden="true"></i></button>
       <button type="button" class="reel-action" data-action="save" aria-label="Save" data-reel-id="{{ reel.id }}"><i class="bi bi-bookmark-fill" aria-hidden="true"></i></button>
       <button type="button" class="reel-action" data-action="mute" aria-label="Toggle sound" data-reel-id="{{ reel.id }}"><i class="bi bi-volume-mute-fill" data-role="mute-icon" aria-hidden="true"></i></button>
     </div>

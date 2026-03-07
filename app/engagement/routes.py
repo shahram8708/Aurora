@@ -1,9 +1,15 @@
 import uuid
-from flask import jsonify, request, render_template, current_app
+from flask import jsonify, request, render_template, current_app, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from app.extensions import limiter
-from app.models import Post, Comment, Save, User, ReelSave, Reel
+from app.models import Post, Comment, Save, User, ReelSave, Reel, Follow
+from app.messaging.messaging_service import (
+    MessagingError,
+    get_or_create_direct_conversation,
+    save_message,
+)
 from . import engagement_bp
 from .services import (
     toggle_like,
@@ -166,17 +172,89 @@ def share_dm(post_id):
     Post.query.get_or_404(_as_uuid(post_id))
     sender_id = get_jwt_identity()
     data = request.get_json(force=True, silent=True) or {}
-    receiver_username = data.get("receiver")
-    if not receiver_username:
-        return _json_error("Receiver required")
-    receiver = User.query.filter_by(username=receiver_username.lower()).first()
-    if not receiver:
+    receiver_username = (data.get("receiver") or "").strip()
+    receiver_id = data.get("receiver_id")
+    receiver: User | None = None
+
+    if receiver_id:
+        try:
+            receiver = User.query.get(_as_uuid(receiver_id))
+        except Exception:
+            receiver = None
+    if not receiver and receiver_username:
+        receiver = User.query.filter(func.lower(User.username) == receiver_username.lower()).first()
+
+    if not receiver or receiver.is_deleted or not receiver.is_active:
         return _json_error("User not found", 404)
     if str(receiver.id) == str(sender_id):
         return _json_error("Cannot share to yourself")
+
+    try:
+        convo = get_or_create_direct_conversation(sender_id, str(receiver.id))
+    except MessagingError as exc:
+        return _json_error(str(exc))
+
+    share = None
     try:
         share = create_direct_share(sender_id, str(receiver.id), str(post_id))
     except Exception:
-        current_app.logger.exception("Failed to share post via DM", extra={"post_id": str(post_id), "receiver": receiver_username})
-        return _json_error("Unable to share right now", 503)
-    return jsonify({"share_id": share.id})
+        current_app.logger.exception(
+            "Failed to persist direct share",
+            extra={"post_id": str(post_id), "receiver": str(receiver.id)},
+        )
+
+    share_url = url_for("sharing.view_public", post_id=post_id, _external=True)
+    note = (data.get("note") or "").strip()
+    message_body = f"{note}\n{share_url}".strip() if share_url else (note or "Shared a post with you")
+
+    try:
+        msg = save_message(
+            str(convo.id),
+            sender_id,
+            message_type="text",
+            content=message_body,
+        )
+    except MessagingError as exc:
+        return _json_error(str(exc))
+
+    return jsonify({
+        "share_id": getattr(share, "id", None),
+        "conversation_id": str(convo.id),
+        "message_id": str(msg.id),
+    })
+
+
+@engagement_bp.get("/share/dm/recipients")
+@jwt_required()
+@limiter.limit("60 per minute")
+def share_dm_recipients():
+    user_uuid = _as_uuid(get_jwt_identity())
+    followers = {f.follower_id for f in Follow.query.filter(Follow.following_id == user_uuid).all()}
+    following = {f.following_id for f in Follow.query.filter(Follow.follower_id == user_uuid).all()}
+    candidate_ids = (followers | following) - {user_uuid}
+    if not candidate_ids:
+        return jsonify({"results": []})
+
+    term = (request.args.get("q") or "").strip().lower()
+    query = User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True), User.is_deleted.is_(False))
+    if term:
+        like_term = f"%{term}%"
+        query = query.filter(or_(func.lower(User.username).like(like_term), func.lower(User.name).like(like_term)))
+
+    users = query.order_by(User.username.asc()).limit(40).all()
+    results = []
+    for u in users:
+        results.append(
+            {
+                "id": str(u.id),
+                "username": u.username,
+                "name": u.name,
+                "avatar": getattr(u, "profile_photo_url", None)
+                or getattr(u, "profile_photo", None)
+                or None,
+                "is_follower": u.id in followers,
+                "is_following": u.id in following,
+            }
+        )
+
+    return jsonify({"results": results})

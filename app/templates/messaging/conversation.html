@@ -3,6 +3,23 @@
 {% block content %}
 {% set meta = conversation_meta or {} %}
 {% set show_senders = meta.member_count and meta.member_count > 2 %}
+<style>
+  .chat-messages .chat-bubble .attachment-preview {margin-top: 0.35rem; border-radius: 14px; background: #0f1114; border: 1px solid rgba(255, 255, 255, 0.05); overflow: hidden;}
+  .chat-messages .chat-bubble .attachment-preview .attachment-meta {padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.02);}
+  .chat-messages .chat-bubble .attachment-preview .attachment-meta a {text-decoration: none;}
+  .embed-shell {position: relative; width: 100%; max-width: 440px; aspect-ratio: 4 / 5; background: #0b0d10; overflow: hidden; border-radius: 12px;}
+  .embed-shell.wide {aspect-ratio: 16 / 9;}
+  .embed-shell img, .embed-shell video, .embed-shell iframe {width: 100%; height: 100%; object-fit: cover; display: block; border: 0;}
+  .embed-shell iframe {overflow: hidden;}
+  .embed-shell iframe.attachment-frame {overflow: hidden;}
+  .embed-shell iframe.attachment-frame::-webkit-scrollbar {display: none;}
+  .embed-shell iframe.link-frame {overflow-y: auto; overflow-x: hidden;}
+  .embed-shell iframe.link-frame::-webkit-scrollbar {width: 6px;}
+  .embed-shell video {background: #000;}
+  .embed-shell.audio-shell {aspect-ratio: auto; background: #0b0d10; padding: 0.75rem; display: flex; align-items: center; border-radius: 12px;}
+  .embed-shell.audio-shell audio {width: 100%;}
+  .link-preview {margin-top: 0.35rem;}
+</style>
 <div class="chat-layout" id="conversation-view" data-conversation-id="{{ conversation_id }}">
   <div class="chat-pane">
     <div class="chat-header d-flex justify-content-between align-items-center">
@@ -46,14 +63,56 @@
         {% endif %}
         {% if m.reply_to_id %}<div class="reply-ref small text-muted">Replying to {{ m.reply_to_id }}</div>{% endif %}
         {% if m.message_type == 'text' %}
+        {% set is_link = m.content and (m.content.startswith('http://') or m.content.startswith('https://')) %}
+        {% if is_link %}
+        <div class="content">
+          <a class="link-info" href="{{ m.content }}" target="_blank" rel="noopener">{{ m.content }}</a>
+          <div class="link-preview">
+            <div class="embed-shell wide">
+              <iframe class="link-frame" src="{{ m.content }}" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups" allow="autoplay; clipboard-read; clipboard-write"></iframe>
+            </div>
+          </div>
+        </div>
+        {% else %}
         <div class="content">{{ m.content }}</div>
+        {% endif %}
         {% elif m.message_type in ['image','video','file','voice','gif'] %}
+        {% set media_url = m.media_url or '' %}
+        {% set media_ext = media_url|lower %}
         {% set label = 'Attachment' %}
         {% if m.message_type == 'voice' %}{% set label = 'Voice message' %}{% endif %}
         {% if m.message_type == 'gif' %}{% set label = 'GIF' %}{% endif %}
         {% if m.message_type == 'image' %}{% set label = 'Image' %}{% endif %}
         {% if m.message_type == 'video' %}{% set label = 'Video' %}{% endif %}
-        <div class="content"><a href="{{ m.media_url }}" target="_blank" class="text-info">{{ label }}</a></div>
+        <div class="content">
+          <div class="attachment-preview">
+            <div class="attachment-meta d-flex justify-content-between align-items-center text-muted small">
+              <span>{{ label }}</span>
+              <a href="{{ m.media_url }}" target="_blank" rel="noopener" class="link-secondary">Open</a>
+            </div>
+            {% if m.message_type in ['image', 'gif'] or media_ext.endswith('.png') or media_ext.endswith('.jpg') or media_ext.endswith('.jpeg') or media_ext.endswith('.webp') %}
+            <div class="embed-shell">
+              <img src="{{ m.media_url }}" alt="{{ label }}" loading="lazy">
+            </div>
+            {% elif m.message_type == 'video' or media_ext.endswith('.mp4') or media_ext.endswith('.webm') or media_ext.endswith('.mov') %}
+            <div class="embed-shell wide">
+              <video controls preload="metadata">
+                <source src="{{ m.media_url }}">
+              </video>
+            </div>
+            {% elif m.message_type == 'voice' %}
+            <div class="embed-shell audio-shell">
+              <audio controls preload="metadata">
+                <source src="{{ m.media_url }}">
+              </audio>
+            </div>
+            {% else %}
+            <div class="embed-shell wide">
+              <iframe class="attachment-frame" src="{{ m.media_url }}" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups" allow="autoplay; clipboard-read; clipboard-write"></iframe>
+            </div>
+            {% endif %}
+          </div>
+        </div>
         {% else %}
         <div class="content">{{ m.content or 'Unsupported message' }}</div>
         {% endif %}

@@ -2,9 +2,11 @@ from datetime import datetime
 import uuid
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func, or_
 from app.extensions import limiter
 from app.models import Reel, ReelMusic, ARFilter, User, ReelInsight
 from app.recommendation.services import personalized_reels, get_trending_cached, annotate_promoted_reels
+from app.messaging.messaging_service import get_or_create_direct_conversation, save_message, MessagingError
 from . import reels_bp
 from .forms import ReelUploadForm
 from .services import create_reel, get_reel, track_view_once, record_watch, get_reel_comments, add_reel_comment, get_reel_likes, add_reel_like, toggle_reel_save
@@ -120,6 +122,57 @@ def share_reel(reel_id):
     refreshed = ReelInsight.query.filter_by(reel_id=_as_uuid(reel_id)).first()
     share_count = refreshed.share_count if refreshed else getattr(insight, "share_count", 0)
     return jsonify({"shared": True, "share_count": int(share_count or 0)})
+
+
+@reels_bp.post("/<uuid:reel_id>/share/dm")
+@jwt_required()
+@limiter.limit("30 per minute")
+def share_reel_dm(reel_id):
+    reel = get_reel(reel_id)
+    if not reel:
+        return jsonify({"error": "Reel not found"}), 404
+
+    sender_id = get_jwt_identity()
+    data = request.get_json(force=True, silent=True) or {}
+    receiver_username = (data.get("receiver") or "").strip()
+    receiver_id = data.get("receiver_id")
+
+    receiver = None
+    if receiver_id:
+        try:
+            receiver = User.query.get(_as_uuid(receiver_id))
+        except Exception:
+            receiver = None
+    if not receiver and receiver_username:
+        receiver = User.query.filter(func.lower(User.username) == receiver_username.lower()).first()
+
+    if not receiver or receiver.is_deleted or not receiver.is_active:
+        return jsonify({"error": "User not found"}), 404
+    if str(receiver.id) == str(sender_id):
+        return jsonify({"error": "Cannot share to yourself"}), 400
+
+    try:
+        convo = get_or_create_direct_conversation(sender_id, str(receiver.id))
+    except MessagingError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    increment_share(str(reel_id))
+
+    share_url = url_for("reels.detail", reel_id=reel_id, _external=True)
+    note = (data.get("note") or "").strip()
+    message_body = f"{note}\n{share_url}".strip() if share_url else (note or "Shared a reel with you")
+
+    try:
+        msg = save_message(
+            str(convo.id),
+            sender_id,
+            message_type="text",
+            content=message_body,
+        )
+    except MessagingError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"conversation_id": str(convo.id), "message_id": str(msg.id)})
 
 
 @reels_bp.post("/<uuid:reel_id>/save")
