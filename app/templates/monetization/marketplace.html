@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Creator Marketplace{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Creator Marketplace</h3>
+  <span class="text-muted small">Use @handles and links – no raw IDs or JSON needed.</span>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Your Creator Profile</h5>
+      <span class="text-muted small">Examples: beauty, tech · rate card: "reel: 8000"</span>
+    </div>
+        <form id="profile-form" class=" g-2 align-items-end">
+      <div class="col-md">
+        <label class="form-label">Categories</label>
+        <input class="form-control" id="profile-categories" placeholder="fashion, travel, food">
+        <div class="form-text">Comma separated like "fitness, gadgets"</div>
+      </div>
+      <div class="col-md">
+        <label class="form-label">Bio</label>
+            <textarea class="form-control" id="profile-bio" rows="2" placeholder="UGC creator making reels for D2C brands"></textarea>
+      </div>
+      <div class="col-md">
+        <label class="form-label">Rate Card (plain text)</label>
+            <textarea class="form-control" id="profile-rate-card" rows="2" placeholder="reel: 8000&#10;story: 3000&#10;reel + story: 10000"></textarea>
+        <div class="form-text">One item per line: "deliverable: price"</div>
+      </div>
+          <div class="col-md d-grid mt-2">
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+    <div class="text-muted small mt-2" id="profile-status"></div>
+    <div class="mt-3" id="profile-summary"></div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-md">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Send Offer</h5>
+        <form id="offer-form" class=" g-2 align-items-end">
+          <div class="col-md">
+            <label class="form-label">Creator handle</label>
+            <input class="form-control" placeholder="@creatorname" id="creator-handle">
+            <div class="form-text">Use their username, not ID</div>
+          </div>
+          <div class="col-md">
+            <label class="form-label">Amount (₹)</label>
+            <input class="form-control" placeholder="8000" id="offer-amount" type="number" min="0">
+          </div>
+          <div class="col-md">
+            <label class="form-label">Message</label>
+            <input class="form-control" placeholder="We'd like a reel + story" id="offer-message">
+          </div>
+          <div class="col-12 mt-2">
+            <button class="btn btn-primary" type="submit">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Brand Partnerships</h5>
+        <form id="brand-form" class=" g-2 align-items-end">
+          <div class="col-md">
+            <label class="form-label">Creator handle</label>
+            <input class="form-control" placeholder="@creatorname" id="brand-creator-handle">
+          </div>
+          <div class="col-md">
+            <label class="form-label">Post link</label>
+            <input class="form-control" placeholder="https://yourapp.com/posts/3d85..." id="brand-post-url">
+            <div class="form-text">Paste the post URL (we'll read the ID)</div>
+          </div>
+          <div class="col-md">
+            <label class="form-label">Brand name</label>
+            <input class="form-control" placeholder="Acme Beverages" id="brand-name">
+          </div>
+          <div class="col-md">
+            <label class="form-label">Brief / deliverables (plain text)</label>
+            <textarea class="form-control" id="brand-meta" rows="2" placeholder="deliverables: 2 reels&#10;usage: 6 months&#10;deadline: 10 Apr"></textarea>
+            <div class="form-text">No JSON needed. Use lines like "usage: 6 months".</div>
+          </div>
+          <div class="col-12 d-flex gap-2 align-items-center mt-2">
+            <button class="btn btn-primary" type="submit">Create Deal</button>
+            <span class="text-muted small" id="brand-status"></span>
+          </div>
+        </form>
+        <hr>
+          <form id="brand-paid-form" class=" g-2 align-items-end">
+            <div class="col-md">
+              <label class="form-label">Deal</label>
+              <select class="form-select" id="brand-deal-id">
+                <option value="" disabled selected>Select a deal</option>
+              </select>
+              <div class="form-text">Choose from your created deals</div>
+            </div>
+            <div class="col-md"><label class="form-label">Amount (₹)</label><input class="form-control" placeholder="12000" id="brand-amount" type="number" min="0"></div>
+            <div class="col-md mt-2"><button class="btn btn-outline-success w-100" type="submit">Mark Paid</button></div>
+          </form>
+        <div class="text-muted small mt-2" id="brand-paid-status"></div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>Deal ID</th><th>Post</th><th>Brand</th><th>Status</th><th>Amount</th><th>Updated</th></tr>
+            </thead>
+            <tbody id="brand-rows"><tr><td colspan="6" class="text-muted">No deals yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">Marketplace Offers</h5>
+          <span class="text-muted small">Shows offers you sent or received</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>Offer ID</th><th>Role</th><th>Message</th><th>Amount</th><th>Status</th><th>Created</th></tr>
+            </thead>
+            <tbody id="offer-rows"><tr><td colspan="6" class="text-muted">No offers yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">Affiliate Links</h5>
+        <form id="affiliate-create" class=" g-2 align-items-end">
+          <div class="col-md"><label class="form-label">Product</label><input class="form-control" id="affiliate-product" placeholder="Wireless earbuds"></div>
+          <div class="col-md"><label class="form-label">Target URL</label><input class="form-control" id="affiliate-url" placeholder="https://example.com/product"></div>
+          <div class="col-md"><label class="form-label">Slug (optional)</label><input class="form-control" id="affiliate-slug" placeholder="my-link"></div>
+          <div class="col-md"><label class="form-label">Commission %</label><input class="form-control" id="affiliate-commission" type="number" min="0" max="1" step="0.05" value="0.10"></div>
+          <div class="col-md mt-2"><button class="btn btn-primary w-100" type="submit">Create</button></div>
+        </form>
+        <div id="affiliate-created" class="mt-2 text-muted small"></div>
+        <hr>
+        <div class="row g-2 align-items-end">
+          <div class="col-md">
+            <label class="form-label">Affiliate Link</label>
+            <select class="form-select" id="affiliate-slug-select">
+              <option value="" disabled selected>Select a link</option>
+            </select>
+          </div>
+          <div class="col-md"><button class="btn btn-outline-primary w-100" id="affiliate-test-click">Test Click</button></div>
+          <div class="col-md"><input class="form-control" id="affiliate-order" placeholder="Order Value" type="number"></div>
+          <div class="col-md"><button class="btn btn-outline-success w-100" id="affiliate-convert">Record Conversion</button></div>
+        </div>
+        <div class="text-muted small mt-2" id="affiliate-status"></div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>Link</th><th>Product</th><th>Target</th><th>Commission</th><th>Clicks</th><th>Conversions</th><th>Created</th></tr>
+            </thead>
+            <tbody id="affiliate-rows"><tr><td colspan="7" class="text-muted">No links yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const withCsrf = (opts = {}) => ({
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken, 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) },
+    ...opts,
+  });
+  const byId = (id) => document.getElementById(id);
+  const cleanHandle = (raw) => (raw || '').trim().replace(/^@/, '');
+  const fmtMoney = (val) => (val === null || val === undefined ? '—' : `₹${Number(val).toLocaleString('en-IN')}`);
+  const fmtDate = (val) => (val ? new Date(val).toLocaleString() : '—');
+  const renderTable = (bodyId, rows, emptyCols, emptyText) => {
+    const body = byId(bodyId);
+    body.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="${emptyCols}" class="text-muted">${emptyText}</td></tr>`;
+  };
+
+  const loadProfile = async () => {
+    const res = await fetch('/monetization/marketplace/profile', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.id) {
+      byId('profile-summary').innerHTML = '<div class="text-muted">No profile saved yet</div>';
+      return;
+    }
+    const categories = (data.categories || []).join(', ') || '—';
+    const rateCard = data.rate_card && Object.keys(data.rate_card).length
+      ? '<ul class="mb-0 small">' + Object.entries(data.rate_card).map(([k, v]) => `<li>${k}: ${v}</li>`).join('') + '</ul>'
+      : '<span class="text-muted">—</span>';
+    byId('profile-summary').innerHTML = `
+      <div class="row g-2">
+        <div class="col-md"><div class="small text-muted">Categories</div><div>${categories}</div></div>
+        <div class="col-md"><div class="small text-muted">Bio</div><div>${data.bio || '—'}</div></div>
+        <div class="col-md"><div class="small text-muted">Rate card</div>${rateCard}</div>
+      </div>`;
+    byId('profile-categories').value = data.categories ? data.categories.join(', ') : '';
+    byId('profile-bio').value = data.bio || '';
+    byId('profile-rate-card').value = data.rate_card && Object.keys(data.rate_card).length ? Object.entries(data.rate_card).map(([k, v]) => `${k}: ${v}`).join('\n') : '';
+  };
+
+  const loadDeals = async () => {
+    const res = await fetch('/monetization/brand', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) return renderTable('brand-rows', [], 6, 'Could not load deals');
+    const deals = await res.json();
+    const rows = deals.map((d) => `
+      <tr>
+        <td>${d.id}</td>
+        <td>${d.post_id ? `<a href="/posts/${d.post_id}" target="_blank">${d.post_id.slice(0, 6)}…</a>` : '—'}</td>
+        <td>${d.brand_name || '—'}</td>
+        <td>${d.status || '—'}${d.is_paid ? ' · paid' : ''}</td>
+        <td>${fmtMoney(d.agreed_amount)}</td>
+        <td>${fmtDate(d.created_at)}</td>
+      </tr>`);
+    renderTable('brand-rows', rows, 6, 'No deals yet');
+
+    const select = byId('brand-deal-id');
+    const selected = select.value;
+    const openDeals = deals.filter((d) => !d.is_paid && d.status !== 'paid');
+    select.innerHTML = '<option value="" disabled selected>Select a deal</option>' + openDeals.map((d) => `<option value="${d.id}" ${selected === d.id ? 'selected' : ''}>${d.brand_name || 'Deal'} · ${d.status || 'pending'} · ${fmtMoney(d.agreed_amount) || '—'}</option>`).join('');
+    if (!select.value && openDeals.length) select.value = openDeals[0].id;
+  };
+
+  const loadOffers = async () => {
+    const res = await fetch('/monetization/marketplace/offers', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) return renderTable('offer-rows', [], 6, 'Could not load offers');
+    const offers = await res.json();
+    const rows = offers.map((o) => `
+      <tr>
+        <td>${o.id}</td>
+        <td>${o.role || '—'}</td>
+        <td>${o.message || '—'}</td>
+        <td>${fmtMoney(o.amount_offered)}</td>
+        <td>${o.status || '—'}</td>
+        <td>${fmtDate(o.created_at)}</td>
+      </tr>`);
+    renderTable('offer-rows', rows, 6, 'No offers yet');
+  };
+
+  let affiliateCache = [];
+
+  const loadAffiliateLinks = async () => {
+    const res = await fetch('/monetization/affiliate/mine', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) return renderTable('affiliate-rows', [], 7, 'Could not load links');
+    const links = await res.json();
+    affiliateCache = links;
+    const rows = links.map((l) => `
+      <tr>
+        <td><a href="/monetization/affiliate/${l.slug}" target="_blank">${l.slug}</a></td>
+        <td>${l.product_name}</td>
+        <td><a href="${l.target_url}" target="_blank">${l.target_url}</a></td>
+        <td>${(l.commission_rate * 100).toFixed(0)}%</td>
+        <td>${l.clicks}</td>
+        <td>${l.conversions}</td>
+        <td>${fmtDate(l.created_at)}</td>
+      </tr>`);
+    renderTable('affiliate-rows', rows, 7, 'No links yet');
+
+    const select = byId('affiliate-slug-select');
+    const selected = select.value;
+    select.innerHTML = '<option value="" disabled selected>Select a link</option>' + links.map((l) => `<option value="${l.slug}" ${selected === l.slug ? 'selected' : ''}>${l.product_name} · ${l.slug}</option>`).join('');
+    if (!select.value && links.length) select.value = links[0].slug;
+  };
+
+  byId('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      categories_text: byId('profile-categories').value,
+      bio: byId('profile-bio').value,
+      rate_card_text: byId('profile-rate-card').value,
+    };
+    const res = await fetch('/monetization/marketplace/profile', withCsrf({ method: 'POST', body: JSON.stringify(payload) }));
+    const data = await res.json();
+    byId('profile-status').textContent = res.ok ? `Profile saved (id: ${data.id})` : (data.error || 'Could not save profile');
+    if (res.ok) loadProfile();
+  });
+
+  byId('offer-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      creator_username: cleanHandle(byId('creator-handle').value),
+      amount_offered: Number(byId('offer-amount').value),
+      message: byId('offer-message').value,
+    };
+    const res = await fetch('/monetization/marketplace/offer', withCsrf({ method: 'POST', body: JSON.stringify(payload) }));
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not send offer');
+      return;
+    }
+    alert('Offer sent: ' + data.id);
+    loadOffers();
+  });
+
+  byId('brand-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      creator_username: cleanHandle(byId('brand-creator-handle').value),
+      post_url: byId('brand-post-url').value.trim(),
+      brand_name: byId('brand-name').value.trim(),
+      metadata_text: byId('brand-meta').value,
+    };
+    const res = await fetch('/monetization/brand', withCsrf({ method: 'POST', body: JSON.stringify(payload) }));
+    const data = await res.json();
+    if (!res.ok) {
+      byId('brand-status').textContent = data.error || 'Failed to create deal';
+      return;
+    }
+    byId('brand-status').textContent = 'Deal created: ' + data.id;
+    byId('brand-deal-id').value = data.id;
+    loadDeals();
+  });
+
+  byId('brand-paid-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = byId('brand-deal-id').value;
+    const amount = Number(byId('brand-amount').value);
+    const res = await fetch(`/monetization/brand/${id}/paid`, withCsrf({ method: 'POST', body: JSON.stringify({ amount }) }));
+    if (!res.ok) {
+      byId('brand-paid-status').textContent = 'Payment update failed';
+      return;
+    }
+    const data = await res.json();
+    byId('brand-paid-status').textContent = `Status: ${data.status} (₹${amount})`;
+    loadDeals();
+  });
+
+  byId('affiliate-create').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const commission = Number(byId('affiliate-commission').value || 0.1);
+    const res = await fetch('/monetization/affiliate', withCsrf({ method: 'POST', body: JSON.stringify({ product_name: byId('affiliate-product').value, target_url: byId('affiliate-url').value, commission_rate: commission, slug: byId('affiliate-slug').value }) }));
+    const data = await res.json();
+    if (!res.ok) {
+      byId('affiliate-status').textContent = data.error || 'Could not create link';
+      return;
+    }
+    byId('affiliate-created').innerHTML = `Link created: <a href="/monetization/affiliate/${data.slug}" target="_blank">/monetization/affiliate/${data.slug}</a>`;
+    byId('affiliate-status').textContent = '';
+    loadAffiliateLinks();
+  });
+
+  byId('affiliate-test-click').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const slug = byId('affiliate-slug-select').value;
+    if (!slug) return;
+    window.open(`/monetization/affiliate/${slug}`, '_blank');
+    byId('affiliate-status').textContent = 'Opened link in new tab';
+  });
+
+  byId('affiliate-convert').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const slug = byId('affiliate-slug-select').value;
+    const orderValue = Number(byId('affiliate-order').value || 0);
+    const res = await fetch(`/monetization/affiliate/${slug}/convert`, withCsrf({ method: 'POST', body: JSON.stringify({ order_value: orderValue }) }));
+    if (!res.ok) {
+      byId('affiliate-status').textContent = 'Conversion failed';
+      return;
+    }
+    const data = await res.json();
+    byId('affiliate-status').textContent = 'Conversion recorded: ' + data.id;
+    loadAffiliateLinks();
+  });
+
+  loadProfile();
+  loadDeals();
+  loadOffers();
+  loadAffiliateLinks();
+</script>
+{% endblock %}

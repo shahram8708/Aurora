@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Refund</div>
+  <div class="headline">Your refund was processed</div>
+  <p class="body-text">Hi {{ user.name }}, we issued your refund. Depending on your bank, it may take a few days to appear.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Amount</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Transaction ID</td><td style="text-align:right;" class="body-text">{{ transaction_id }}</td></tr>
+      <tr><td class="muted">Method</td><td style="text-align:right;" class="body-text">{{ method }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View details"} %}
+  <p class="muted">If this refund looks wrong, reach out to support with the transaction ID above.</p>
+{% endblock %}

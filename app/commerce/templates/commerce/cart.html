@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Cart{% endblock %}
+{% block content %}
+<style>
+  .sticky-summary {position: sticky; top: 12px;}
+</style>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="bg-white rounded shadow-sm p-3">
+      <h5 class="mb-3">Cart</h5>
+      {% for item in cart.items %}
+      <div class="d-flex align-items-center justify-content-between border-bottom py-2">
+        <div>
+          <p class="mb-0 fw-semibold">{{ item.product.title if item.product else 'Product' }}</p>
+          <small class="text-muted">₹{{ '%.2f' % (item.price_snapshot/100) }} x {{ item.quantity }}</small>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-outline-secondary" onclick="updateQty('{{ item.product_id }}', {{ item.quantity-1 }})">-</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="updateQty('{{ item.product_id }}', {{ item.quantity+1 }})">+</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="removeItem('{{ item.product_id }}')">Remove</button>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-info">Your cart is empty.</div>
+      {% endfor %}
+    </div>
+    <div class="bg-white rounded shadow-sm p-3 mt-3">
+      <h6>Shipping address</h6>
+      <div class="row g-2">
+        <div class="col-md-6"><input id="ship-name" class="form-control" placeholder="Full name"></div>
+        <div class="col-md-6"><input id="ship-phone" class="form-control" placeholder="Phone"></div>
+        <div class="col-12"><input id="ship-line1" class="form-control" placeholder="Address line"></div>
+        <div class="col-md-6"><input id="ship-city" class="form-control" placeholder="City"></div>
+        <div class="col-md-6"><input id="ship-zip" class="form-control" placeholder="ZIP"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="bg-white rounded shadow-sm p-3 sticky-summary">
+      <div class="d-flex justify-content-between mb-2">
+        <span>Subtotal</span>
+        <strong>₹{{ '%.2f' % (total/100) }}</strong>
+      </div>
+      <button id="checkout-btn" type="button" class="btn btn-primary w-100" onclick="checkout(event)">Checkout with Razorpay</button>
+      <div id="checkout-status" class="small text-muted mt-2"></div>
+      <small class="text-muted d-block mt-2">Secure payment powered by Razorpay</small>
+    </div>
+  </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  const checkoutBtn = document.getElementById('checkout-btn');
+  const statusEl = document.getElementById('checkout-status');
+  const affiliateCode = '{{ affiliate_code or "" }}';
+
+  function setBusy(isBusy, message=''){
+    if(checkoutBtn){
+      checkoutBtn.disabled = isBusy;
+      checkoutBtn.innerText = isBusy ? 'Processing…' : 'Checkout with Razorpay';
+    }
+    if(statusEl){ statusEl.textContent = message; }
+  }
+  async function updateQty(productId, qty){
+    if(qty<=0){return removeItem(productId);}
+    const headers = {'Content-Type':'application/json'};
+    if(csrfToken){ headers['X-CSRFToken'] = csrfToken; headers['X-CSRF-Token'] = csrfToken; }
+    await fetch('/commerce/cart/update',{method:'POST',headers,body:JSON.stringify({product_id:productId, quantity:qty})});
+    location.reload();
+  }
+  async function removeItem(productId){
+    const headers = {'Content-Type':'application/json'};
+    if(csrfToken){ headers['X-CSRFToken'] = csrfToken; headers['X-CSRF-Token'] = csrfToken; }
+    await fetch('/commerce/cart/remove',{method:'POST',headers,body:JSON.stringify({product_id:productId})});
+    location.reload();
+  }
+    function validateShipping(){
+      const fields = [
+        ['ship-name','Full name'],
+        ['ship-phone','Phone'],
+        ['ship-line1','Address line'],
+        ['ship-city','City'],
+        ['ship-zip','ZIP']
+      ];
+      const missing = fields.filter(([id])=>!document.getElementById(id)?.value.trim()).map(([,label])=>label);
+      if(missing.length){
+        alert('Please fill: ' + missing.join(', '));
+        return null;
+      }
+      return {
+        name: document.getElementById('ship-name').value.trim(),
+        phone: document.getElementById('ship-phone').value.trim(),
+        line1: document.getElementById('ship-line1').value.trim(),
+        city: document.getElementById('ship-city').value.trim(),
+        zip: document.getElementById('ship-zip').value.trim(),
+      };
+    }
+
+    async function checkout(evt){
+    evt?.preventDefault();
+      const shipping = validateShipping();
+      if(!shipping){ return; }
+    const headers = {'Content-Type':'application/json'};
+    if(csrfToken){ headers['X-CSRFToken'] = csrfToken; headers['X-CSRF-Token'] = csrfToken; }
+    try {
+      setBusy(true, 'Preparing payment...');
+      const res = await fetch('/commerce/checkout',{method:'POST',headers,body:JSON.stringify({shipping_address:shipping})});
+      const data = await res.json();
+      if(!res.ok){ throw new Error(data.error||'Checkout failed'); }
+
+      const options = {
+        key: '{{ razorpay_key }}',
+        amount: data.razorpay_order.amount,
+        currency: data.razorpay_order.currency,
+        name: 'Shop Checkout',
+        description: 'Secure payment',
+        order_id: data.razorpay_order.id,
+        method: {card:true, upi:true, wallet:true, netbanking:true},
+        redirect: true,
+        callback_url: affiliateCode
+          ? '{{ url_for('commerce.checkout_callback', _external=True) }}' + '?affiliate_code=' + encodeURIComponent(affiliateCode)
+          : '{{ url_for('commerce.checkout_callback', _external=True) }}',
+        target: '_self',
+        notes: {...shipping, order_id: data.order_id, affiliate_code: affiliateCode || undefined},
+        prefill: {name: shipping.name, contact: shipping.phone},
+        theme: {color:'#0d6efd'},
+        modal: {
+          backdropclose: false,
+          escape: false,
+          confirm_close: true,
+          ondismiss: function(){ setBusy(false, 'Payment dismissed'); }
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        setBusy(false, response.error?.description||'Payment failed. Please try again.');
+        alert(response.error?.description||'Payment failed. Stock will be restored.');
+      });
+      rzp.open();
+      setBusy(true, 'Complete the payment in the Razorpay window...');
+    } catch (err) {
+      setBusy(false, err.message || 'Unable to start payment');
+      alert(err.message || 'Unable to start payment');
+    }
+  }
+</script>
+{% endblock %}

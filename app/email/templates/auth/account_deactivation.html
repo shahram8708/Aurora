@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Account status</div>
+  <div class="headline">Your account was deactivated</div>
+  <p class="body-text">Hi {{ user.name }}, we processed a deactivation request for your account. Your profile and data are scheduled for removal after the retention period.</p>
+  <div class="card">
+    <div class="muted">Requested on</div>
+    <div class="body-text">{{ timestamp }}</div>
+    <div class="muted" style="margin-top:8px;">Retention</div>
+    <div class="body-text">{{ retention_days or 30 }} days before permanent removal.</div>
+  </div>
+  {% if reactivate_url %}
+    {% include "components/button.html" with context {"url": reactivate_url, "label": "Undo deactivation"} %}
+  {% endif %}
+  <p class="body-text">If you did not request this, contact support immediately so we can freeze the account and investigate.</p>
+{% endblock %}

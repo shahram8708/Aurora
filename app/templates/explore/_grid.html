@@ -1,0 +1,27 @@
+{% for post in posts %}
+{% set post_href = url_for('posts.view_post', post_id=post.id) %}
+<div class="col-6 col-md-4 col-xl-3">
+  <div class="card post-card shadow-sm" data-post-id="{{ post.id }}">
+    {% if post.media|length %}
+    <img src="{{ post.media[0].media_url }}" class="card-img-top" alt="post" style="object-fit:cover; height:200px;">
+    {% endif %}
+    <div class="card-body">
+      {% if post.is_promoted %}<span class="badge bg-warning text-dark mb-1">Promoted</span>{% endif %}
+      <p class="card-text text-truncate">{{ post.caption or 'Post' }}</p>
+      <a href="{{ post_href }}" class="stretched-link" aria-label="Open post {{ post.id }}"></a>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% for reel in reels %}
+{% set reel_href = url_for('reels.detail', reel_id=reel.id) %}
+<div class="col-6 col-md-4 col-xl-3">
+  <div class="card reel-card shadow-sm" data-reel-id="{{ reel.id }}">
+    <img src="{{ reel.thumbnail_url }}" class="card-img-top" alt="reel" style="object-fit:cover; height:200px;">
+    <div class="card-body">
+      <p class="card-text text-truncate">{{ reel.caption or 'Reel' }}</p>
+      <a href="{{ reel_href }}" class="stretched-link" aria-label="Open reel {{ reel.id }}"></a>
+    </div>
+  </div>
+</div>
+{% endfor %}

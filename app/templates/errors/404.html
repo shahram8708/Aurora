@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block title %}Not Found{% endblock %}{% block content %}<div class="text-center py-5"><h1 class="display-4">404</h1><p class="lead">Page not found.</p>{% if error_message %}<p class="text-muted">{{ error_message }}</p>{% endif %}<a class="btn btn-primary mt-3" href="{{ request.referrer or url_for('users.dashboard') }}">Go back</a></div>{% endblock %}

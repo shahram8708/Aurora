@@ -1,0 +1,65 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="text-dark fw-bold mb-1">Analytics Overview</h2>
+    <p class="text-muted mb-0">Engagement, revenue, and safety signals.</p>
+  </div>
+  <span class="badge bg-primary">Live</span>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card p-3 text-dark">
+      <small class="text-uppercase text-muted">DAU</small>
+      <h3 class="mb-0">{{ metrics.dau }}</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3 text-dark">
+      <small class="text-uppercase text-muted">MAU</small>
+      <h3 class="mb-0">{{ metrics.mau }}</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3 text-dark">
+      <small class="text-uppercase text-muted">Engagement (avg followers)</small>
+      <h3 class="mb-0">{{ metrics.engagement|round(2) }}</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3 text-dark">
+      <small class="text-uppercase text-muted">Live sessions</small>
+      <h3 class="mb-0">{{ metrics.live_sessions }}</h3>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 text-dark">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Revenue</h6>
+        <span class="badge bg-success">₹</span>
+      </div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item d-flex justify-content-between">Successful <span class="fw-semibold">₹{{ metrics.revenue.successful }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Failed <span class="fw-semibold">₹{{ metrics.revenue.failed }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Pending <span class="fw-semibold">₹{{ metrics.revenue.pending }}</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 text-dark">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Reports</h6>
+        <span class="badge bg-danger">Moderation</span>
+      </div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item d-flex justify-content-between">Content <span class="fw-semibold">{{ metrics.reports.content }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">User <span class="fw-semibold">{{ metrics.reports.user }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Copyright <span class="fw-semibold">{{ metrics.reports.copyright }}</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

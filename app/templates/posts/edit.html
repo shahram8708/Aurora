@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Edit Post{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4 class="mb-3">Edit Post</h4>
+    <form method="post">
+      {{ form.hidden_tag() }}
+      <div class="mb-3">{{ form.caption.label(class_='form-label') }}{{ form.caption(class_='form-control', rows=3) }}</div>
+      <div class="mb-3">{{ form.location_name.label(class_='form-label') }}{{ form.location_name(class_='form-control') }}</div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">{{ form.location_latitude.label(class_='form-label') }}{{ form.location_latitude(class_='form-control') }}</div>
+        <div class="col-md-6">{{ form.location_longitude.label(class_='form-label') }}{{ form.location_longitude(class_='form-control') }}</div>
+      </div>
+      <div class="mb-3">{{ form.branded_content_tag.label(class_='form-label') }}{{ form.branded_content_tag(class_='form-control') }}</div>
+      <div class="form-check mb-3">{{ form.hide_like_count(class_='form-check-input') }}{{ form.hide_like_count.label(class_='form-check-label ms-2') }}</div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-danger" formaction="{{ url_for('posts.delete_post_route', post_id=post.id) }}" formmethod="post">Delete</button>
+        <button class="btn btn-outline-warning" formaction="{{ url_for('posts.archive_post', post_id=post.id) }}" formmethod="post">{{ 'Unarchive' if post.is_archived else 'Archive' }}</button>
+        <button class="btn btn-outline-info" formaction="{{ url_for('posts.pin', post_id=post.id) }}" formmethod="post">{{ 'Unpin' if post.is_pinned else 'Pin' }}</button>
+        {{ form.submit(class_='btn btn-primary ms-auto') }}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

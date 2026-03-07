@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">New follower</div>
+  <div class="headline">{{ actor or 'Someone' }} followed you</div>
+  <p class="body-text">Hi {{ user.name }}, you have a new follower. Keep the momentum going by sharing something your audience will love.</p>
+  <div class="card">
+    <div class="body-text">Follower: <strong>{{ actor or 'New user' }}</strong></div>
+    <div class="muted">Stay discoverable and engage back to grow your community.</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View follower"} %}
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

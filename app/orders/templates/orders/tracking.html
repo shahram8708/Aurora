@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Order Tracking{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-1">Order #{{ order.id }}</h5>
+    <small class="text-muted">Order status: {{ order.status }}</small>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="/orders/history">Back to history</a>
+</div>
+
+<div class="bg-white p-4 rounded shadow-sm">
+  <h6 class="mb-3">Shipment</h6>
+  <dl class="row mb-0">
+    <dt class="col-sm-3">Carrier</dt>
+    <dd class="col-sm-9">{{ carrier or 'Not assigned yet' }}</dd>
+    <dt class="col-sm-3">Tracking number</dt>
+    <dd class="col-sm-9">{{ tracking_number or 'Not available yet' }}</dd>
+    <dt class="col-sm-3">Status</dt>
+    <dd class="col-sm-9">{{ status or 'pending' }}</dd>
+    <dt class="col-sm-3">Last update</dt>
+    <dd class="col-sm-9">{{ updated_at or '—' }}</dd>
+  </dl>
+  <div class="alert alert-info mt-3 mb-0" role="alert">
+    If you just paid, the seller still needs to mark this order as shipped and add tracking. You will see updates here once the seller fulfills it.
+  </div>
+</div>
+{% endblock %}

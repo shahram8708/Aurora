@@ -1,0 +1,1068 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+{% set owner = is_owner if is_owner is defined else False %}
+{% set following = is_following if is_following is defined else False %}
+{% set can_lists = can_view_lists if can_view_lists is defined else True %}
+{% set viewer_authed = viewer_authenticated if viewer_authenticated is defined else False %}
+{% set can_private = can_view_private if can_view_private is defined else True %}
+{% set request_status = follow_request_status if follow_request_status is defined else None %}
+{% set stories = (stories_data if stories_data is defined else []) if can_private else [] %}
+{% set highlights = (highlights_data if highlights_data is defined else []) if can_private else [] %}
+{% set reels = (reels_data if reels_data is defined else ((user.reels or [])|list)) if can_private else [] %}
+{% set posts = (posts_data if posts_data is defined else ((user.posts or [])|list)) if can_private else [] %}
+{% set archived_posts = archived_posts_data if archived_posts_data is defined else [] %}
+{% set subscriber_locks = subscriber_locks if subscriber_locks is defined else {'plan_id': None, 'posts': [], 'reels': []} %}
+{% set has_sub_plan = has_subscription_plan if has_subscription_plan is defined else False %}
+{% set is_subscriber = is_subscriber if is_subscriber is defined else False %}
+{% set is_blocked = is_blocked if is_blocked is defined else False %}
+{% set is_restricted = is_restricted if is_restricted is defined else False %}
+{% set is_muted = is_muted if is_muted is defined else False %}
+{% set is_close_friend = is_close_friend if is_close_friend is defined else False %}
+<style>
+.profile-story-ring {border: 2px solid #ff7a59; padding: 2px; display: inline-block; border-radius: 50%;}
+.profile-story-ring img {border-radius: 50%; width: 110px; height: 110px; object-fit: cover;}
+.story-chip {width: 78px; text-align: center; color: #444; font-size: 12px;}
+.story-chip .thumb {width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #ff7a59; padding: 2px;}
+.highlight-chip .thumb {border-color: #6c757d;}
+.media-grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;}
+.media-card {position: relative; overflow: hidden; border-radius: 8px; aspect-ratio: 1 / 1;}
+.media-card img, .media-card video {width: 100%; height: 100%; object-fit: cover; display: block;}
+.media-card.reel-card {aspect-ratio: 9 / 16;}
+.media-card .overlay {position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.55)); color: #fff; padding: 10px; display: flex; align-items: end; font-size: 12px;}
+.reel-badge {position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.65); color: #fff; padding: 2px 6px; border-radius: 12px; font-size: 11px;}
+.media-card .share-chip {z-index: 2;}
+.share-chip {position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.65); color: #fff; padding: 4px 6px; border-radius: 12px; font-size: 11px; border: 0; display: flex; align-items: center; justify-content: center;}
+.share-chip svg {width: 14px; height: 14px; fill: currentColor;}
+.scroll-row {overflow-x: auto; white-space: nowrap;}
+.scroll-row .story-chip {display: inline-block; margin-right: 12px;}
+.media-card-link {display: block; color: inherit; text-decoration: none;}
+.profile-section-tabs .btn {border-radius: 999px; border-color: #e5e5e5; background: #f8f9fa; color: #333; padding: 6px 14px; font-weight: 600;}
+.profile-section-tabs .btn.active {background: #111; color: #fff; border-color: #111;}
+</style>
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <button class="btn p-0 border-0 bg-transparent" {% if stories|length == 0 %}disabled{% else %}data-bs-toggle="modal" data-bs-target="#storyModal" data-story-index="0"{% endif %}>
+          <div class="profile-story-ring mb-2">
+            <img src="{{ user.profile_photo_url or url_for('static', filename='images/avatar-placeholder.svg') }}" alt="avatar">
+          </div>
+        </button>
+        <h4>{{ user.username }}</h4>
+        <p class="text-muted">{{ user.name }}</p>
+        <p>{{ user.bio }}</p>
+        <div class="d-flex justify-content-center gap-3">
+          <a class="text-decoration-none" href="{{ url_for('users.followers', user_id=user.id) }}">
+            <strong>{{ user.follower_count }}</strong> Followers
+          </a>
+          <a class="text-decoration-none" href="{{ url_for('users.following', user_id=user.id) }}">
+            <strong>{{ user.following_count }}</strong> Following
+          </a>
+        </div>
+        {% if owner %}
+        <a class="btn btn-outline-primary mt-3" href="{{ url_for('users.edit_profile') }}">Edit Profile</a>
+        {% else %}
+          {% if viewer_authed %}
+            {% if incoming_request %}
+            <div class="d-flex gap-2 mt-3 flex-wrap justify-content-center">
+              <span class="text-muted">Requested to follow you</span>
+              <form class="d-inline" method="post" action="{{ url_for('users.accept_follow_request', req_id=incoming_request.id) }}">
+                <button class="btn btn-primary" type="submit">Accept</button>
+              </form>
+              <form class="d-inline" method="post" action="{{ url_for('users.decline_follow_request', req_id=incoming_request.id) }}">
+                <button class="btn btn-outline-secondary" type="submit">Decline</button>
+              </form>
+            </div>
+            {% else %}
+            <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mt-3">
+              {% if following %}
+              <form class="d-inline" method="post" action="{{ url_for('users.unfollow_user', user_id=user.id) }}">
+                <button class="btn btn-outline-secondary" type="submit">Unfollow</button>
+              </form>
+              {% elif user.is_private %}
+                {% if request_status == 'pending' %}
+                <form class="d-inline" method="post" action="{{ url_for('users.cancel_follow_request', user_id=user.id) }}">
+                  <button class="btn btn-outline-secondary" type="submit">Requested</button>
+                </form>
+                {% else %}
+                <form class="d-inline" method="post" action="{{ url_for('users.follow_user', user_id=user.id) }}">
+                  <button class="btn btn-primary" type="submit">Request Follow</button>
+                </form>
+                {% endif %}
+              {% else %}
+              <form class="d-inline" method="post" action="{{ url_for('users.follow_user', user_id=user.id) }}">
+                <button class="btn btn-primary" type="submit">Follow</button>
+              </form>
+              {% endif %}
+              <button type="button" class="btn btn-outline-primary message-btn" data-user-id="{{ user.id }}" data-username="{{ user.username }}">Message</button>
+            </div>
+            {% endif %}
+            <div class="mt-3">
+              <div class="text-muted small mb-2">Safety &amp; controls</div>
+              <div class="d-flex flex-wrap justify-content-center gap-2">
+                <form class="d-inline" method="post" action="{{ url_for('users.block_user', target_id=user.id) if not is_blocked else url_for('users.unblock_user', target_id=user.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-danger btn-sm" type="submit">{{ 'Unblock' if is_blocked else 'Block' }}</button>
+                </form>
+                <form class="d-inline" method="post" action="{{ url_for('users.restrict_user', target_id=user.id) if not is_restricted else url_for('users.unrestrict_user', target_id=user.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Unrestrict' if is_restricted else 'Restrict' }}</button>
+                </form>
+                <form class="d-inline" method="post" action="{{ url_for('users.mute_user', target_id=user.id) if not is_muted else url_for('users.unmute_user', target_id=user.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-dark btn-sm" type="submit">{{ 'Unmute' if is_muted else 'Mute' }}</button>
+                </form>
+                <form class="d-inline" method="post" action="{{ url_for('users.add_close_friend', target_id=user.id) if not is_close_friend else url_for('users.remove_close_friend', target_id=user.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-success btn-sm" type="submit">{{ 'Remove Close Friend' if is_close_friend else 'Add Close Friend' }}</button>
+                </form>
+              </div>
+            </div>
+          {% else %}
+            <a class="btn btn-primary mt-3" href="{{ url_for('auth.login') }}">Log in to follow</a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% if user.is_private and not owner and not following %}
+    <div class="alert alert-warning mt-3 mb-0">This account is private. Follow to see posts, links, and contact info.</div>
+    {% endif %}
+  </div>
+  <div class="col-md-8">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h5>Contact</h5>
+        {% if can_private %}
+          {% set contact_email = user.contact_email or user.email %}
+          {% set contact_phone = user.contact_phone or user.phone %}
+          {% set contact_address = user.address %}
+          {% set has_contact = contact_email or contact_phone or contact_address %}
+          {% if has_contact %}
+            {% if contact_email %}<p>Email: {{ contact_email }}</p>{% endif %}
+            {% if contact_phone %}<p>Phone: {{ contact_phone }}</p>{% endif %}
+            {% if contact_address %}<p>Address: {{ contact_address }}</p>{% endif %}
+          {% else %}
+            <p class="text-muted mb-0">No contact info shared.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see contact info.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if not owner %}
+    <div class="card border-0 shadow-sm mb-3 d-none" id="creator-subscribe-card">
+      <div class="card-body p-4" style="background: linear-gradient(135deg, #fdfdfd 0%, #f1f3f5 100%); color: #111;">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+          <div>
+            <div class="fw-semibold fs-5">Subscribe to {{ user.username }}</div>
+            <div class="text-muted small">Exclusive drops, behind-the-scenes, and priority DMs.</div>
+          </div>
+          <span class="badge text-bg-light text-dark" id="subscribe-status-pill" style="display:none;">Subscribed</span>
+        </div>
+        <div class="row g-2 mt-3" id="creator-plan-list"></div>
+        {% if viewer_authed %}
+        <div class="text-muted small mt-2" id="subscribe-hint">Pick a plan to continue with Razorpay checkout.</div>
+        <div class="d-flex gap-2 mt-2" id="subscribe-actions" style="display:none;">
+          <button class="btn btn-outline-secondary btn-sm" id="subscription-cancel-btn" type="button">Cancel subscription</button>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary mb-0 mt-2">Log in to subscribe.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    <div class="profile-section-tabs d-flex flex-wrap align-items-center gap-2 mb-3" aria-label="Profile content filter">
+      <button type="button" class="btn btn-sm active" data-section-filter="all">All</button>
+      <button type="button" class="btn btn-sm" data-section-filter="posts">Posts</button>
+      <button type="button" class="btn btn-sm" data-section-filter="reels">Reels</button>
+      <button type="button" class="btn btn-sm" data-section-filter="stories">Stories</button>
+      <button type="button" class="btn btn-sm" data-section-filter="highlights">Highlights</button>
+      <button type="button" class="btn btn-sm" data-section-filter="live">Live</button>
+      {% if owner %}
+      <button type="button" class="btn btn-sm" data-section-filter="archived">Archived</button>
+      {% endif %}
+    </div>
+    {% set locked_posts = subscriber_locks.posts|length if subscriber_locks.posts is defined else 0 %}
+    {% set locked_reels = subscriber_locks.reels|length if subscriber_locks.reels is defined else 0 %}
+    {% if has_sub_plan and not owner and not is_subscriber and (locked_posts + locked_reels) > 0 %}
+    <div class="alert alert-info shadow-sm mb-3">Subscribe to unlock {{ locked_posts }} exclusive posts and {{ locked_reels }} reels.</div>
+    {% endif %}
+    {% if owner and pending_requests %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Follow Requests <span class="badge bg-secondary">{{ pending_requests|length }}</span></h5>
+        <div class="list-group list-group-flush">
+          {% for req in pending_requests %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">{{ req.requester.username if req.requester else 'User' }}</div>
+              <div class="text-muted small">Requested on {{ req.created_at.strftime('%Y-%m-%d') if req.created_at else '' }}</div>
+            </div>
+        // update highlight name display if current highlight
+        if (highlightNameDisplay && selText) {
+          highlightNameDisplay.style.display = 'block';
+          highlightNameDisplay.textContent = `Highlight: ${selText}`;
+        }
+            <div class="d-flex gap-2">
+              <form method="post" action="{{ url_for('users.accept_follow_request', req_id=req.id) }}">
+                <button class="btn btn-sm btn-primary" type="submit">Accept</button>
+              </form>
+              <form method="post" action="{{ url_for('users.decline_follow_request', req_id=req.id) }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Decline</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% if can_private %}
+      {% set has_links = user.bio_links and user.bio_links|length > 0 %}
+      {% if has_links %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h5>Bio Links</h5>
+          <ul class="list-group list-group-flush">
+            {% for link in user.bio_links %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ link.label }}</span>
+                <a href="{{ link.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-light">Visit</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="alert alert-secondary shadow-sm">Follow to see links and connections.</div>
+    {% endif %}
+    <div class="card shadow-sm mb-3 profile-content-section" data-section="stories">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Stories <span class="badge bg-secondary">{{ stories|length }}</span></h5>
+        {% if can_private %}
+          {% if stories %}
+          <div class="scroll-row pb-1" id="storyRow">
+            {% for story in stories %}
+            <div class="story-chip position-relative d-inline-block me-2">
+              <button class="btn btn-ghost p-0" data-bs-toggle="modal" data-bs-target="#storyModal" data-story-index="{{ loop.index0 }}">
+                <img class="thumb" src="{{ story.cover_url or story.media_url or user.profile_photo_url or url_for('static', filename='images/avatar-placeholder.svg') }}" alt="story">
+                <div class="text-truncate mt-1">{{ story.title or 'Story' }}</div>
+              </button>
+              {% if owner %}
+              <button type="button" class="btn btn-sm btn-danger position-absolute delete-story" style="top:6px; right:6px;" data-story-id="{{ story.id }}">✕</button>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">No stories yet.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see stories.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card shadow-sm mb-3 profile-content-section" data-section="highlights">
+      <div class="card-body" id="highlightSection">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Highlights <span class="badge bg-secondary">{{ highlights|length }}</span></h5>
+        {% if can_private %}
+          {% if highlights %}
+          <div class="scroll-row pb-1" id="highlightRow">
+            {% for hl in highlights %}
+            <div class="story-chip highlight-chip position-relative d-inline-block me-2">
+              <button class="btn btn-ghost p-0 open-highlight" data-bs-toggle="modal" data-bs-target="#storyModal" data-story-index="{{ hl.start_index or 0 }}" data-highlight-title="{{ hl.title or 'Highlight' }}">
+                <img class="thumb" src="{{ hl.cover or user.profile_photo_url or url_for('static', filename='images/avatar-placeholder.svg') }}" alt="highlight">
+                <div class="text-truncate mt-1">{{ hl.title or 'Highlight' }}</div>
+              </button>
+              {% if owner %}
+              <button type="button" class="btn btn-sm btn-danger position-absolute delete-highlight" style="top:6px; right:6px;" data-highlight-id="{{ hl.id }}">✕</button>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted mb-0" id="highlightEmpty">No highlights yet.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see highlights.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card shadow-sm mb-3 profile-content-section" data-section="live">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Live <span class="badge bg-danger">{{ live_sessions|length }}</span></h5>
+        {% if is_owner or following %}
+          {% if live_sessions %}
+            <div class="list-group list-group-flush">
+              {% for live in live_sessions %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold">{{ live.title }}</div>
+                    <div class="text-muted small">Started {{ live.started_at or live.created_at }}</div>
+                  </div>
+                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('live.view_live', session_id=live.id) }}">Join</a>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">No live session right now.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see live sessions.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card shadow-sm mb-3 profile-content-section" data-section="reels">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Reels
+          <span class="badge bg-secondary">{{ reels|length }}</span>
+          {% if has_sub_plan and not is_subscriber and (subscriber_locks.reels|length if subscriber_locks.reels is defined else 0) > 0 %}
+          <span class="badge bg-warning text-dark ms-2">+{{ subscriber_locks.reels|length }} locked</span>
+          {% endif %}
+        </h5>
+        {% if can_private %}
+          {% if reels %}
+          <div class="media-grid">
+            {% for reel in reels %}
+            {% set reel_href = url_for('reels.detail', reel_id=reel.id) if reel.id else '#' %}
+            {% set reel_share = url_for('reels.detail', reel_id=reel.id, _external=True) if reel.id else '' %}
+            <div class="position-relative">
+              <div class="media-card reel-card">
+                <span class="reel-badge">Reel</span>
+                <button type="button" class="share-chip share-btn" data-url="{{ reel_share }}">Share</button>
+                <a class="media-card-link" href="{{ reel_href }}">
+                  <video src="{{ reel.video_url }}" muted playsinline loop></video>
+                  <div class="overlay">
+                    <div class="text-truncate">{{ reel.caption or 'Reel' }}</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% elif has_sub_plan and not is_subscriber and (subscriber_locks.reels|length if subscriber_locks.reels is defined else 0) > 0 %}
+          <p class="text-muted mb-0">Reels marked exclusive are visible after you subscribe.</p>
+          {% else %}
+          <p class="text-muted mb-0">No reels yet.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see reels.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card shadow-sm profile-content-section" data-section="posts">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Posts
+          <span class="badge bg-secondary">{{ posts|length }}</span>
+          {% if has_sub_plan and not is_subscriber and (subscriber_locks.posts|length if subscriber_locks.posts is defined else 0) > 0 %}
+          <span class="badge bg-warning text-dark ms-2">+{{ subscriber_locks.posts|length }} locked</span>
+          {% endif %}
+        </h5>
+        {% if can_private %}
+          {% if posts %}
+          <div class="media-grid">
+            {% for post in posts %}
+            {% set media_list = (post.media or [])|list %}
+            {% set first_media = media_list[0] if media_list|length > 0 else None %}
+            {% set thumb = post.thumbnail_url or post.cover_url or (first_media.thumbnail_url if first_media is not none else None) or (first_media.cover_url if first_media is not none else None) or (first_media.media_url if first_media is not none else None) or post.media_url or url_for('static', filename='images/avatar-placeholder.svg') %}
+            {% set post_href = url_for('posts.view_post', post_id=post.id) if post.id else '#' %}
+            {% set post_share = url_for('sharing.view_public', post_id=post.id, _external=True) if post.id else '' %}
+            <div class="position-relative">
+              <div class="media-card">
+                {% if post.is_video or (first_media and first_media.media_type == 'video') %}
+                  <span class="reel-badge">Video</span>
+                  <button type="button" class="share-chip share-btn" data-url="{{ post_share }}" aria-label="Copy share link">
+                    <svg aria-hidden="true" viewBox="0 0 16 16" role="img" focusable="false">
+                      <path d="M11 2.5a.5.5 0 0 0-1 0v4.793L4.854 2.146a.5.5 0 1 0-.708.708L9.293 8H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 .5-.5v-7z"/>
+                    </svg>
+                    <span class="visually-hidden">Share</span>
+                  </button>
+                  <a class="media-card-link" href="{{ post_href }}">
+                    <video src="{{ (first_media.media_url if first_media else post.media_url) or '' }}" poster="{{ thumb }}" muted playsinline loop></video>
+                    <div class="overlay">
+                      <div class="text-truncate">{{ post.caption or 'Post' }}</div>
+                    </div>
+                  </a>
+                {% else %}
+                  <button type="button" class="share-chip share-btn" data-url="{{ post_share }}" aria-label="Copy share link">
+                    <svg aria-hidden="true" viewBox="0 0 16 16" role="img" focusable="false">
+                      <path d="M11 2.5a.5.5 0 0 0-1 0v4.793L4.854 2.146a.5.5 0 1 0-.708.708L9.293 8H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 .5-.5v-7z"/>
+                    </svg>
+                    <span class="visually-hidden">Share</span>
+                  </button>
+                  <a class="media-card-link" href="{{ post_href }}">
+                    <img src="{{ thumb }}" alt="post">
+                    <div class="overlay">
+                      <div class="text-truncate">{{ post.caption or 'Post' }}</div>
+                    </div>
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% elif has_sub_plan and not is_subscriber and (subscriber_locks.posts|length if subscriber_locks.posts is defined else 0) > 0 %}
+          <p class="text-muted mb-0">Posts marked exclusive are visible after you subscribe.</p>
+          {% else %}
+          <p class="text-muted mb-0">No posts yet.</p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted mb-0">Follow to see posts.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if owner %}
+    <div class="card shadow-sm profile-content-section" data-section="archived">
+      <div class="card-body">
+        <h5 class="d-flex justify-content-between align-items-center mb-3">Archived
+          <span class="badge bg-secondary">{{ archived_posts|length }}</span>
+        </h5>
+        {% if archived_posts %}
+        <div class="media-grid">
+          {% for post in archived_posts %}
+          {% set media_list = (post.media or [])|list %}
+          {% set first_media = media_list[0] if media_list|length > 0 else None %}
+          {% set thumb = post.thumbnail_url or post.cover_url or (first_media.thumbnail_url if first_media is not none else None) or (first_media.cover_url if first_media is not none else None) or (first_media.media_url if first_media is not none else None) or post.media_url or url_for('static', filename='images/avatar-placeholder.svg') %}
+          <div class="position-relative">
+            <div class="media-card">
+              <span class="reel-badge">Archived</span>
+              {% if post.is_video or (first_media and first_media.media_type == 'video') %}
+                <video src="{{ (first_media.media_url if first_media else post.media_url) or '' }}" poster="{{ thumb }}" muted playsinline loop></video>
+              {% else %}
+                <img src="{{ thumb }}" alt="archived post">
+              {% endif %}
+              <div class="overlay">
+                <div class="text-truncate">{{ post.caption or 'Archived post' }}</div>
+              </div>
+            </div>
+            <form class="mt-2" method="post" action="{{ url_for('posts.archive_post', post_id=post.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center justify-content-center gap-2" type="submit">
+                <i class="bi bi-archive"></i>
+                <span>Restore to profile</span>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No archived posts.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div class="modal fade" id="storyModal" tabindex="-1" aria-labelledby="storyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body p-0">
+        <div class="d-flex justify-content-between align-items-center px-3 pt-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="profile-story-ring" style="width:46px;height:46px; padding:1px;">
+              <img id="storyAvatar" src="{{ user.profile_photo_url or url_for('static', filename='images/avatar-placeholder.svg') }}" alt="avatar" style="width:44px;height:44px;">
+            </div>
+            <div>
+              <div class="fw-semibold" id="storyUsername">{{ user.username }}</div>
+              <div class="text-muted small" id="storyTimestamp"></div>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="position-relative bg-black" style="min-height:420px;">
+          <div id="storyProgress" class="position-absolute top-0 start-0 bg-primary" style="height:3px; width:0;"></div>
+          <div id="storyMedia" class="w-100 h-100 d-flex align-items-center justify-content-center" style="overflow:hidden;"></div>
+          <div class="position-absolute top-50 start-0 translate-middle-y ps-2">
+            <button class="btn btn-outline-light" id="storyPrev">‹</button>
+          </div>
+          <div class="position-absolute top-50 end-0 translate-middle-y pe-2">
+            <button class="btn btn-outline-light" id="storyNext">›</button>
+          </div>
+        </div>
+        <div class="px-3 py-2" id="storyCaption"></div>
+        <div class="px-3 pb-1 small text-muted" id="highlightNameDisplay" style="display:none;"></div>
+        {% if owner %}
+        <div class="px-3 pb-3 d-flex flex-wrap gap-2 align-items-center">
+          <select class="form-select form-select-sm" id="highlightSelect" style="max-width: 200px;">
+            <option value="">Select highlight</option>
+            {% for hl in highlights %}
+            <option value="{{ hl.id }}">{{ hl.title or ('Highlight ' ~ loop.index) }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="addToHighlightBtn">Add to Highlight</button>
+          <button type="button" class="btn btn-sm btn-primary" id="createHighlightBtn">New Highlight</button>
+          <span class="text-muted small" id="highlightStatus"></span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('[data-section-filter]');
+    const sections = document.querySelectorAll('.profile-content-section');
+    if (!tabButtons.length || !sections.length) return;
+
+    function showSection(key) {
+      sections.forEach(sec => {
+        const show = key === 'all' || sec.dataset.section === key;
+        sec.classList.toggle('d-none', !show);
+      });
+      tabButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sectionFilter === key);
+      });
+    }
+
+    tabButtons.forEach(btn => btn.addEventListener('click', () => {
+      const key = btn.dataset.sectionFilter || 'all';
+      showSection(key);
+    }));
+
+    showSection('all');
+  });
+
+// Creator subscriptions (viewer side)
+document.addEventListener('DOMContentLoaded', function() {
+  const planWrap = document.getElementById('creator-plan-list');
+  const statusPill = document.getElementById('subscribe-status-pill');
+  const subscribeCard = document.getElementById('creator-subscribe-card');
+  const subscribeHint = document.getElementById('subscribe-hint');
+  const subscribeActions = document.getElementById('subscribe-actions');
+  const cancelBtn = document.getElementById('subscription-cancel-btn');
+  if (!planWrap || !subscribeCard) return;
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const csrfHeaders = csrfToken ? { 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken } : {};
+  const creatorId = '{{ user.id }}';
+  const viewerAuthed = {{ 'true' if viewer_authed else 'false' }};
+  let checkoutMeta = null;
+  let alreadySubscribed = false;
+  let activeSubscriptionId = null;
+
+  function subscribeButtons() {
+    return Array.from(document.querySelectorAll('.subscribe-btn'));
+  }
+
+  function setBusy(isBusy, message) {
+    subscribeButtons().forEach((btn) => {
+      if (isBusy) {
+        if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+      } else {
+        btn.disabled = false;
+        if (btn.dataset.label) btn.textContent = btn.dataset.label;
+      }
+    });
+    if (subscribeHint) subscribeHint.textContent = message || '';
+  }
+
+  function money(amount) {
+    return '₹' + (amount / 100).toFixed(0) + '/mo';
+  }
+
+  function renderPlans(plans) {
+    planWrap.innerHTML = '';
+    if (!plans.length) {
+      subscribeCard.classList.add('d-none');
+      return;
+    }
+    subscribeCard.classList.remove('d-none');
+    plans.forEach((p) => {
+      let benefits = [];
+      if (Array.isArray(p.benefits)) {
+        benefits = p.benefits.filter(Boolean);
+      } else if (p.benefits && Array.isArray(p.benefits.perks)) {
+        benefits = p.benefits.perks.filter(Boolean);
+      } else if (p.benefits) {
+        benefits = Object.values(p.benefits).filter((v) => typeof v === 'string');
+      }
+      const card = document.createElement('div');
+      card.className = 'col-md-6';
+      card.innerHTML = `
+        <div class="border rounded p-3 h-100 d-flex flex-column gap-1">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="fw-semibold">${money(p.price)}</div>
+            <span class="badge text-bg-primary">Monthly</span>
+          </div>
+          ${benefits.length ? `<ul class="small mb-2 ps-3">${benefits.map(b=>`<li>${b}</li>`).join('')}</ul>` : '<div class="small text-muted">Support this creator</div>'}
+          ${viewerAuthed ? `<button class="btn btn-dark w-100 subscribe-btn" data-plan="${p.id}">Subscribe</button>` : ''}
+        </div>`;
+      planWrap.appendChild(card);
+    });
+  }
+
+  async function loadPlans() {
+    try {
+      const res = await fetch(`/monetization/subscriptions/plans/${creatorId}`);
+      const data = await res.json();
+      renderPlans(data || []);
+    } catch (err) {
+      subscribeCard.classList.add('d-none');
+    }
+  }
+
+  async function loadSubscriptionStatus() {
+    try {
+      const res = await fetch(`/monetization/subscriptions/status/${creatorId}`, { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.subscribed) {
+        alreadySubscribed = true;
+        activeSubscriptionId = data.id || null;
+        subscribeButtons().forEach((btn) => {
+          btn.textContent = 'Subscribed';
+          btn.disabled = true;
+        });
+        if (statusPill) {
+          statusPill.style.display = 'inline-block';
+          statusPill.textContent = 'Subscribed';
+        }
+        if (subscribeHint) subscribeHint.textContent = 'You are subscribed.';
+        if (subscribeActions && cancelBtn) {
+          subscribeActions.style.display = 'flex';
+          cancelBtn.disabled = false;
+        }
+      } else {
+        alreadySubscribed = false;
+        activeSubscriptionId = null;
+        subscribeButtons().forEach((btn) => {
+          btn.textContent = 'Subscribe';
+          btn.disabled = false;
+        });
+        if (statusPill) statusPill.style.display = 'none';
+        if (subscribeHint) subscribeHint.textContent = 'Choose a plan to subscribe.';
+        if (subscribeActions) subscribeActions.style.display = 'none';
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  async function cancelSubscription() {
+    if (!activeSubscriptionId) return;
+    if (!window.confirm('Cancel your subscription?')) return;
+    try {
+      cancelBtn.disabled = true;
+      if (subscribeHint) subscribeHint.textContent = 'Cancelling...';
+      const res = await fetch(`/monetization/subscriptions/${activeSubscriptionId}/cancel`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...csrfHeaders },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to cancel');
+      alreadySubscribed = false;
+      activeSubscriptionId = null;
+      subscribeButtons().forEach((btn) => {
+        btn.textContent = 'Subscribe';
+        btn.disabled = false;
+      });
+      if (statusPill) statusPill.style.display = 'none';
+      if (subscribeHint) subscribeHint.textContent = 'Subscription cancelled and refunded (if eligible).';
+      if (subscribeActions) subscribeActions.style.display = 'none';
+    } catch (err) {
+      if (subscribeHint) subscribeHint.textContent = err.message || 'Unable to cancel right now.';
+      cancelBtn.disabled = false;
+    }
+  }
+
+  async function ensureCheckoutMeta() {
+    if (checkoutMeta) return checkoutMeta;
+    const res = await fetch('/monetization/subscriptions/checkout/meta', { credentials: 'same-origin' });
+    checkoutMeta = await res.json();
+    return checkoutMeta;
+  }
+
+  function loadRazorpay() {
+    return new Promise((resolve, reject) => {
+      if (window.Razorpay) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Razorpay'));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function startSubscribe(planId) {
+    if (alreadySubscribed) {
+      if (subscribeHint) subscribeHint.textContent = 'You are already subscribed.';
+      return;
+    }
+    try {
+      setBusy(true, 'Preparing payment...');
+      const meta = await ensureCheckoutMeta();
+      await loadRazorpay();
+      const callbackUrl = meta.subscription_callback_url || meta.callback_url;
+      const resp = await fetch('/monetization/subscriptions/subscribe/order/start', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...csrfHeaders },
+        body: JSON.stringify({ creator_id: creatorId, plan_id: planId }),
+      });
+      if (!resp.ok) throw new Error('Subscribe failed');
+      const data = await resp.json();
+      const options = {
+        key: meta.razorpay_key,
+        amount: data.razorpay_order.amount,
+        currency: data.razorpay_order.currency,
+        order_id: data.razorpay_order.id,
+        name: 'Subscribe to {{ user.username }}',
+        description: 'Creator subscription',
+        method: { card: true, upi: true, wallet: true, netbanking: true, paylater: true },
+        config: {
+          display: {
+            blocks: {
+              card: { name: 'Cards', instruments: [] },
+              upi: { name: 'UPI', instruments: [] },
+              netbanking: { name: 'Netbanking', instruments: [] },
+              wallet: { name: 'Wallets', instruments: [] },
+              paylater: { name: 'Pay Later', instruments: [] },
+            },
+            sequence: ['card', 'upi', 'netbanking', 'wallet', 'paylater'],
+            preferences: { show_default_blocks: true }
+          }
+        },
+        redirect: true,
+        callback_url: callbackUrl,
+        target: '_self',
+        notes: { creator_id: creatorId, plan_id: planId, order_id: data.order_id },
+        theme: { color: '#111' },
+        modal: {
+          backdropclose: false,
+          escape: false,
+          confirm_close: true,
+          ondismiss: function() {
+            if (subscribeHint) subscribeHint.textContent = 'Payment dismissed. Please try again.';
+            if (statusPill) statusPill.style.display = 'none';
+            setBusy(false);
+          }
+        }
+      };
+      const rz = new window.Razorpay(options);
+      rz.on('payment.failed', function (response) {
+        if (subscribeHint) subscribeHint.textContent = response.error?.description || 'Payment failed. Please try again.';
+        alert(response.error?.description || 'Payment failed. Please try again.');
+        setBusy(false);
+      });
+      rz.open();
+      if (statusPill) {
+        statusPill.style.display = 'inline-block';
+        statusPill.textContent = 'Pending payment';
+      }
+      if (subscribeHint) subscribeHint.textContent = 'Complete the payment in the Razorpay window...';
+    } catch (err) {
+      console.error('subscribe error', err);
+      alert('Unable to start subscription right now.');
+      setBusy(false, 'Unable to start payment');
+    }
+  }
+
+  if (subscribeCard && viewerAuthed) {
+    subscribeCard.addEventListener('click', (e) => {
+      const btn = e.target.closest('.subscribe-btn');
+      if (!btn) return;
+      e.preventDefault();
+      startSubscribe(btn.dataset.plan);
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      cancelSubscription();
+    });
+  }
+
+  loadPlans();
+  if (viewerAuthed) loadSubscriptionStatus();
+});
+  </script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const storyData = {{ (stories_data if can_private else [])|default([], true)|tojson|safe }};
+  if (!storyData.length) return;
+  const modalEl = document.getElementById('storyModal');
+  const mediaSlot = document.getElementById('storyMedia');
+  const captionEl = document.getElementById('storyCaption');
+  const tsEl = document.getElementById('storyTimestamp');
+  const progressEl = document.getElementById('storyProgress');
+  const usernameEl = document.getElementById('storyUsername');
+  const highlightSection = document.getElementById('highlightSection');
+  const highlightNameDisplay = document.getElementById('highlightNameDisplay');
+   const highlightSelect = document.getElementById('highlightSelect');
+   const addHighlightBtn = document.getElementById('addToHighlightBtn');
+   const createHighlightBtn = document.getElementById('createHighlightBtn');
+   const highlightStatus = document.getElementById('highlightStatus');
+   const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+   const csrfHeaders = csrf ? {'X-CSRFToken': csrf, 'X-CSRF-Token': csrf} : {};
+  const fallbackCover = "{{ user.profile_photo_url or url_for('static', filename='images/avatar-placeholder.svg') }}";
+  const LAST_HIGHLIGHT_KEY = 'stories:last_highlight_title';
+  const lastHighlightTitle = localStorage.getItem(LAST_HIGHLIGHT_KEY) || '';
+  let current = 0;
+  let timer = null;
+
+  function setStatus(msg, isError=false) {
+    if (!highlightStatus) return;
+    highlightStatus.textContent = msg || '';
+    highlightStatus.classList.toggle('text-danger', !!isError);
+  }
+
+  function renderStory(idx) {
+    current = idx;
+    const item = storyData[idx];
+    mediaSlot.innerHTML = '';
+    if (item.media_type === 'video') {
+      const vid = document.createElement('video');
+      vid.src = item.media_url;
+      vid.autoplay = true;
+      vid.muted = true;
+      vid.loop = false;
+      vid.playsInline = true;
+      vid.controls = true;
+      vid.style.maxHeight = '520px';
+      mediaSlot.appendChild(vid);
+    } else {
+      const img = document.createElement('img');
+      img.src = item.media_url;
+      img.alt = item.title || 'Story';
+      img.style.maxHeight = '520px';
+      img.style.objectFit = 'contain';
+      img.className = 'w-100 h-100';
+      mediaSlot.appendChild(img);
+    }
+    captionEl.textContent = item.caption || '';
+    tsEl.textContent = item.created_at || '';
+    usernameEl.textContent = item.username || '{{ user.username }}';
+    progressEl.style.width = '0%';
+    if (highlightSelect) {
+      highlightSelect.dataset.storyId = item.id || '';
+    }
+    animateProgress();
+  }
+
+  function animateProgress() {
+    clearInterval(timer);
+    let pct = 0;
+    timer = setInterval(() => {
+      pct += 2;
+      progressEl.style.width = pct + '%';
+      if (pct >= 100) {
+        clearInterval(timer);
+        goNext();
+      }
+    }, 100);
+  }
+
+  function goNext() {
+    const next = (current + 1) % storyData.length;
+    renderStory(next);
+  }
+
+  function goPrev() {
+    const prev = (current - 1 + storyData.length) % storyData.length;
+    renderStory(prev);
+  }
+
+  document.querySelectorAll('[data-story-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.storyIndex, 10) || 0;
+      renderStory(idx);
+      const ht = btn.dataset.highlightTitle;
+      if (highlightNameDisplay) {
+        highlightNameDisplay.style.display = ht ? 'block' : 'none';
+        highlightNameDisplay.textContent = ht ? `Highlight: ${ht}` : '';
+      }
+    });
+  });
+  document.getElementById('storyNext').addEventListener('click', goNext);
+  document.getElementById('storyPrev').addEventListener('click', goPrev);
+  modalEl.addEventListener('hidden.bs.modal', () => clearInterval(timer));
+
+  if (highlightSelect && lastHighlightTitle) {
+    const match = Array.from(highlightSelect.options).find(opt => (opt.textContent || '').trim().toLowerCase() === lastHighlightTitle.trim().toLowerCase());
+    if (match) {
+      highlightSelect.value = match.value;
+    }
+  }
+
+  if (highlightSelect) {
+    highlightSelect.addEventListener('change', () => {
+      const selText = highlightSelect.selectedOptions[0]?.textContent?.trim();
+      if (selText) localStorage.setItem(LAST_HIGHLIGHT_KEY, selText);
+    });
+  }
+
+  if (addHighlightBtn && highlightSelect) {
+    addHighlightBtn.addEventListener('click', async () => {
+      const hid = highlightSelect.value;
+      const sid = highlightSelect.dataset.storyId;
+      if (!sid) { setStatus('No story selected', true); return; }
+      if (!hid) { setStatus('Select a highlight', true); return; }
+      setStatus('Adding...');
+      const form = new FormData();
+      form.append('story_id', sid);
+      try {
+        const resp = await fetch(`/stories/highlights/${hid}/add`, {
+          method: 'POST',
+          body: form,
+          headers: csrfHeaders,
+          credentials: 'same-origin',
+        });
+        const txt = await resp.text();
+        if (!resp.ok) throw new Error('Failed to add');
+        setStatus('Added to highlight');
+        const selText = highlightSelect.selectedOptions[0]?.textContent?.trim();
+        if (selText) localStorage.setItem(LAST_HIGHLIGHT_KEY, selText);
+      } catch (err) {
+        console.error('highlight add error', err);
+        setStatus('Unable to add', true);
+      }
+    });
+  }
+
+  if (createHighlightBtn && highlightSelect) {
+    createHighlightBtn.addEventListener('click', async () => {
+      const sid = highlightSelect.dataset.storyId;
+      const currentItem = storyData[current];
+      if (!sid) { setStatus('No story selected', true); return; }
+      const title = window.prompt('Highlight title?', lastHighlightTitle || 'Highlight');
+      if (!title) return;
+      setStatus('Creating...');
+      try {
+        const resp = await fetch('/stories/highlights/quick-add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...csrfHeaders,
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            title,
+            story_id: sid,
+            cover_image: currentItem?.cover_url || currentItem?.media_url || '',
+          }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to create');
+        const opt = document.createElement('option');
+        opt.value = data.highlight_id;
+        opt.textContent = data.title || 'Highlight';
+        highlightSelect.appendChild(opt);
+        highlightSelect.value = data.highlight_id;
+        if (data.title) localStorage.setItem(LAST_HIGHLIGHT_KEY, data.title);
+        setStatus('Created and added');
+        // Add chip to UI without reload
+        let row = document.getElementById('highlightRow');
+        const empty = document.getElementById('highlightEmpty');
+        if (!row && highlightSection) {
+          row = document.createElement('div');
+          row.id = 'highlightRow';
+          row.className = 'scroll-row pb-1';
+          if (empty) empty.remove();
+          highlightSection.appendChild(row);
+        }
+        if (row) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'story-chip highlight-chip position-relative d-inline-block me-2';
+          wrapper.innerHTML = `
+            <button class="btn btn-ghost p-0 open-highlight" data-bs-toggle="modal" data-bs-target="#storyModal" data-story-index="${current}" data-highlight-title="${data.title || 'Highlight'}">
+              <img class="thumb" src="${currentItem?.cover_url || currentItem?.media_url || fallbackCover}" alt="highlight">
+              <div class="text-truncate mt-1">${data.title || 'Highlight'}</div>
+              <div class="small text-muted">${data.title || 'Highlight'}</div>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger position-absolute delete-highlight" style="top:6px; right:6px;" data-highlight-id="${data.highlight_id}">✕</button>
+          `;
+          row.appendChild(wrapper);
+          const del = wrapper.querySelector('.delete-highlight');
+          if (del) del.addEventListener('click', () => deleteHighlight(data.highlight_id, wrapper));
+        }
+        const badge = highlightSection?.querySelector('.badge');
+        if (badge) badge.textContent = String((parseInt(badge.textContent || '0', 10) || 0) + 1);
+      } catch (err) {
+        console.error('highlight create error', err);
+        setStatus('Unable to create', true);
+      }
+    });
+  }
+
+  async function deleteStory(id, node) {
+    try {
+      const resp = await fetch(`/stories/${id}/delete`, {
+        method: 'POST',
+        headers: csrfHeaders,
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) throw new Error('Delete failed');
+      if (node) node.remove();
+      const badge = document.querySelector('#storyRow')?.parentElement?.querySelector('.badge');
+      if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent || '1', 10) - 1).toString();
+    } catch (err) {
+      console.error('story delete error', err);
+      alert('Unable to delete story');
+    }
+  }
+
+  async function deleteHighlight(id, node) {
+    try {
+      const resp = await fetch(`/stories/highlights/${id}/delete`, {
+        method: 'POST',
+        headers: csrfHeaders,
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) throw new Error('Delete failed');
+      if (node) node.remove();
+      const badge = highlightSection?.querySelector('.badge');
+      if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent || '1', 10) - 1).toString();
+      if (!document.querySelector('#highlightRow')?.children.length) {
+        const empty = document.createElement('p');
+        empty.id = 'highlightEmpty';
+        empty.className = 'text-muted mb-0';
+        empty.textContent = 'No highlights yet.';
+        highlightSection.appendChild(empty);
+      }
+    } catch (err) {
+      console.error('highlight delete error', err);
+      alert('Unable to delete highlight');
+    }
+  }
+
+  document.querySelectorAll('.delete-story').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = btn.dataset.storyId;
+      deleteStory(id, btn.closest('.story-chip'));
+    });
+  });
+
+  document.querySelectorAll('.delete-highlight').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = btn.dataset.highlightId;
+      deleteHighlight(id, btn.closest('.story-chip'));
+    });
+  });
+});
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.share-btn');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const url = btn.dataset.url;
+  if (!url) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      btn.textContent = 'Copied';
+      setTimeout(() => btn.textContent = 'Share', 1200);
+    }).catch(() => window.prompt('Copy link', url));
+  } else {
+    window.prompt('Copy link', url);
+  }
+});
+</script>
+{% endblock %}

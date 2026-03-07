@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Subscription</div>
+  <div class="headline">Subscription activated</div>
+  <p class="body-text">Hi {{ user.name }}, your subscription to {{ plan_name }} is active. Enjoy premium access immediately.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Plan</td><td style="text-align:right;" class="body-text">{{ plan_name }}</td></tr>
+      <tr><td class="muted">Amount</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Renewal</td><td style="text-align:right;" class="body-text">{{ renewal_date }}</td></tr>
+      <tr><td class="muted">Transaction ID</td><td style="text-align:right;" class="body-text">{{ transaction_id }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Manage subscription"} %}
+  <p class="muted">You can cancel anytime before renewal. Need help? Visit support.</p>
+{% endblock %}

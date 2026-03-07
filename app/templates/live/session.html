@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+{% block title %}Live - {{ session.title }}{% endblock %}
+{% block content %}
+<div class="live-player card border-0 shadow-lg">
+  <div class="card-body p-0 position-relative">
+    <div class="live-video" style="height:60vh; background:linear-gradient(135deg,#e2e8f0,#cbd5e1);" id="live-stage">
+      <div class="position-absolute top-0 start-0 p-3">
+        <span class="badge bg-danger">LIVE</span>
+        <span class="ms-2 text-dark fw-semibold">{{ session.title }}</span>
+      </div>
+      <div id="reactions" class="position-absolute bottom-0 end-0 p-3 d-flex flex-column gap-2"></div>
+      <video id="live-remote" class="w-100 h-100 object-fit-cover d-none" playsinline autoplay></video>
+      <video id="host-preview" class="w-100 h-100 object-fit-cover d-none" playsinline muted></video>
+    </div>
+    <div class="p-3">
+      <div class="d-flex align-items-center mb-2">
+        <div class="flex-grow-1">
+          <h5 class="mb-0 text-dark">{{ session.host_id }}</h5>
+          <small class="text-muted">{{ session.description }}</small>
+        </div>
+      </div>
+      <div class="border rounded p-2 mb-2 chat-list" style="height:240px; overflow:auto;" id="comment-list"></div>
+      <form id="comment-form" class="d-flex gap-2">
+        <input type="text" class="form-control" placeholder="Say something" id="comment-input">
+        <button class="btn btn-primary d-inline-flex align-items-center" type="submit">
+          <i class="bi bi-send-fill me-1"></i>
+          Send
+        </button>
+      </form>
+      <div class="d-flex flex-wrap gap-2 mt-2" id="reaction-row">
+        <button type="button" class="btn btn-light btn-sm d-inline-flex align-items-center reaction-btn" data-reaction="heart">
+          <i class="bi bi-heart-fill text-danger me-1"></i>
+          React
+        </button>
+        <button type="button" class="btn btn-light btn-sm d-inline-flex align-items-center reaction-btn" data-reaction="clap">
+          <i class="bi bi-hand-thumbs-up-fill text-primary me-1"></i>
+          Clap
+        </button>
+        <button type="button" class="btn btn-light btn-sm d-inline-flex align-items-center reaction-btn" data-reaction="fire">
+          <i class="bi bi-fire text-warning me-1"></i>
+          Hype
+        </button>
+      </div>
+      <div class="border rounded p-3 mt-3" id="presence-box">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Live viewers</h6>
+          <span class="badge bg-secondary" id="presence-count">0</span>
+        </div>
+        <div id="participant-list" class="d-flex flex-wrap gap-2"></div>
+      </div>
+      <div id="blocked-box" class="border rounded p-3 mt-3 d-none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Blocked viewers</h6>
+          <small class="text-muted">Click unblock to allow again</small>
+        </div>
+        <div id="blocked-list" class="d-flex flex-column gap-2"></div>
+      </div>
+      <div id="host-controls" class="border rounded p-3 mt-3 d-none">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <button class="btn btn-success btn-sm d-inline-flex align-items-center" id="cam-start">
+            <i class="bi bi-camera-video-fill me-1"></i>
+            Start Camera
+          </button>
+          <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center" id="cam-stop" disabled>
+            <i class="bi bi-stop-circle me-1"></i>
+            Stop
+          </button>
+          <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center" id="cam-toggle" disabled>
+            <i class="bi bi-arrow-repeat me-1"></i>
+            Switch Camera
+          </button>
+            <button class="btn btn-danger btn-sm d-inline-flex align-items-center" id="end-live">
+              <i class="bi bi-power me-1"></i>
+              End Live
+            </button>
+            <span class="text-muted small" id="cam-status"></span>
+        </div>
+        <small class="text-muted">Camera will stream to viewers over WebRTC; switching cameras will renegotiate automatically.</small>
+        <hr class="my-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-chat-dots"></i>
+            Chat Controls
+          </h6>
+          <span class="badge bg-success" id="chat-status-label">Comments on</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="chat-settings">
+          <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" id="toggle-comments-btn" type="button">
+            <i class="bi bi-slash-circle me-1"></i>
+            Disable comments
+          </button>
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-hourglass-split text-muted"></i>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Slow mode">
+              <button type="button" class="btn btn-outline-primary slow-btn" data-seconds="0">Off</button>
+              <button type="button" class="btn btn-outline-primary slow-btn" data-seconds="5">5s</button>
+              <button type="button" class="btn btn-outline-primary slow-btn" data-seconds="10">10s</button>
+            </div>
+          </div>
+        </div>
+        <small class="text-muted">Slow mode limits how often viewers can send chat messages.</small>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const socket = io("{{ request.host_url.rstrip('/') }}{{ url_for('live.view_live', session_id=session.id) }}".replace("/live/{{ session.id }}",""), { path: '/socket.io', transports: ['websocket', 'polling'] });
+  const liveNs = io("{{ request.host_url.rstrip('/') }}{{ url_for('live.view_live', session_id=session.id) }}".replace("/live/{{ session.id }}","") + "{{ '/ws/live' }}", { query: { token: '{{ request.cookies.get('access_token_cookie', '') }}' }, transports:['websocket', 'polling'] });
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const sessionId = '{{ session.id }}';
+  const hostId = '{{ session.host_id }}';
+  const userId = (window.currentUserId && window.currentUserId.length) ? window.currentUserId : `anon-${crypto.randomUUID()}`;
+  const isHost = userId === hostId;
+  const initialParticipants = {{ (participants or [])|tojson|safe }};
+  const initialComments = {{ (comments or [])|tojson|safe }};
+  const participantList = document.getElementById('participant-list');
+  const participantCount = document.getElementById('presence-count');
+  const log = (msg) => {
+    console.log('[webrtc]', msg);
+  };
+  let joined = false;
+  const commentListEl = document.getElementById('comment-list');
+  function scrollCommentsToBottom() {
+    if (commentListEl) commentListEl.scrollTop = commentListEl.scrollHeight;
+  }
+  function renderComment(payload) {
+    const list = document.getElementById('comment-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'chat-row';
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+    const nameLink = document.createElement('a');
+    nameLink.className = 'chat-username';
+    nameLink.href = payload.profile_url || `/profile/${payload.user_id}`;
+    nameLink.textContent = payload.username || payload.user_id;
+    const ts = document.createElement('span');
+    ts.className = 'chat-time';
+    ts.textContent = payload.created_at ? new Date(payload.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    meta.appendChild(nameLink);
+    meta.appendChild(ts);
+    const msg = document.createElement('div');
+    msg.className = 'chat-text';
+    msg.textContent = payload.message;
+    bubble.appendChild(meta);
+    bubble.appendChild(msg);
+    row.appendChild(bubble);
+    list.appendChild(row);
+    scrollCommentsToBottom();
+  }
+  (initialComments || []).forEach(renderComment);
+  liveNs.on('comment', renderComment);
+  function showReactionBubble(reactionType) {
+    const bubble = document.createElement('div');
+    bubble.className = 'reaction-bubble';
+    const iconMap = {
+      heart: '<i class="bi bi-heart-fill text-danger"></i>',
+      clap: '<i class="bi bi-hand-thumbs-up-fill text-primary"></i>',
+      fire: '<i class="bi bi-fire text-warning"></i>',
+    };
+    bubble.innerHTML = iconMap[reactionType] || reactionType;
+    const container = document.getElementById('reactions');
+    if (container) {
+      container.appendChild(bubble);
+      setTimeout(()=>bubble.remove(), 1500);
+    }
+  }
+  liveNs.on('reaction', (p)=>{
+    showReactionBubble(p.reaction_type);
+  });
+  // --- WebRTC host->viewer signaling ---
+  const remoteVideo = document.getElementById('live-remote');
+  const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  const peers = {};
+  let hostStream = null;
+  const pendingOfferViewers = new Set();
+
+  function renderParticipants(list) {
+    if (!participantList) return;
+    participantList.innerHTML = '';
+    list.forEach((p) => {
+      const card = document.createElement('div');
+      card.className = 'd-inline-flex align-items-center gap-2 border rounded px-2 py-1 text-decoration-none text-dark';
+      const img = document.createElement('img');
+      img.src = p.photo || '{{ url_for('static', filename='images/avatar-placeholder.svg') }}';
+      img.alt = p.username || p.user_id;
+      img.width = 28; img.height = 28;
+      img.style.borderRadius = '50%';
+      const name = document.createElement('span');
+      name.textContent = p.username || p.user_id;
+      const role = document.createElement('small');
+      role.className = 'text-muted';
+      role.textContent = p.role;
+      const textWrap = document.createElement('div');
+      textWrap.className = 'd-flex flex-column lh-sm';
+      textWrap.appendChild(name);
+      textWrap.appendChild(role);
+      const actions = document.createElement('div');
+      actions.className = 'd-flex align-items-center gap-1 ms-2';
+      if (isHost && p.user_id !== hostId) {
+        const kickBtn = document.createElement('button');
+        kickBtn.type = 'button';
+        kickBtn.className = 'btn btn-light btn-sm text-danger px-2 py-1';
+        kickBtn.title = 'Remove viewer';
+        kickBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
+        kickBtn.addEventListener('click', (e)=>{ e.preventDefault(); moderateViewer(p.user_id, 'remove'); });
+        const blockBtn = document.createElement('button');
+        blockBtn.type = 'button';
+        blockBtn.className = 'btn btn-light btn-sm text-warning px-2 py-1';
+        blockBtn.title = 'Block from this live';
+        blockBtn.innerHTML = '<i class="bi bi-slash-circle"></i>';
+        blockBtn.addEventListener('click', (e)=>{ e.preventDefault(); moderateViewer(p.user_id, 'block'); });
+        actions.appendChild(kickBtn);
+        actions.appendChild(blockBtn);
+      }
+      const textWrapContainer = document.createElement('a');
+      textWrapContainer.className = 'd-flex align-items-center text-decoration-none text-dark';
+      textWrapContainer.href = `/profile/${p.user_id}`;
+      textWrapContainer.appendChild(img);
+      textWrapContainer.appendChild(textWrap);
+      card.appendChild(textWrapContainer);
+      card.appendChild(actions);
+      participantList.appendChild(card);
+    });
+    if (participantCount) participantCount.textContent = String(list.length);
+  }
+
+  renderParticipants(initialParticipants || []);
+  loadBlocked();
+
+  function ensurePeer(peerId, attachLocal = false) {
+    if (peers[peerId]) return peers[peerId];
+    const pc = new RTCPeerConnection(pcConfig);
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        log(`send ice to ${peerId}`);
+        liveNs.emit('ice-candidate', { session_id: sessionId, target_id: peerId, candidate: event.candidate });
+      }
+    };
+    pc.ontrack = (event) => {
+      if (!isHost) {
+        log('remote track received');
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideo.classList.remove('d-none');
+      }
+    };
+    pc.onconnectionstatechange = () => {
+      log(`pc ${peerId} state ${pc.connectionState}`);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        pc.close();
+        delete peers[peerId];
+      }
+    };
+    if (attachLocal && hostStream) {
+      hostStream.getTracks().forEach(t => pc.addTrack(t, hostStream));
+    }
+    peers[peerId] = pc;
+    return pc;
+  }
+
+  async function createOfferFor(viewerId) {
+    const pc = ensurePeer(viewerId, true);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    log(`send offer to ${viewerId}`);
+    liveNs.emit('offer', { session_id: sessionId, target_id: viewerId, sdp: offer });
+  }
+
+  liveNs.on('request-offer', async (data) => {
+    if (!isHost) return;
+    if (!hostStream) {
+      pendingOfferViewers.add(data.from_id);
+      log(`request-offer queued (no stream) from ${data.from_id}`);
+      return;
+    }
+    log(`request-offer from ${data.from_id}`);
+    await createOfferFor(data.from_id);
+  });
+
+  liveNs.on('offer', async (data) => {
+    if (data.target_id && data.target_id !== userId) return;
+    if (isHost) return;
+    log(`offer from ${data.from_id}`);
+    const pc = ensurePeer(data.from_id, false);
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    liveNs.emit('answer', { session_id: sessionId, target_id: data.from_id, sdp: answer });
+  });
+
+  liveNs.on('answer', async (data) => {
+    if (!isHost) return;
+    if (data.target_id && data.target_id !== userId) return;
+    log(`answer from ${data.from_id}`);
+    const pc = peers[data.from_id];
+    if (!pc) return;
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  });
+
+  liveNs.on('ice-candidate', async (data) => {
+    if (data.target_id && data.target_id !== userId) return;
+    const pc = peers[data.from_id];
+    if (!pc) return;
+    log(`ice from ${data.from_id}`);
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch (err) {
+      console.error('ICE add error', err);
+      log(`ice error ${err.message}`);
+    }
+  });
+
+  liveNs.on('joined', (data) => {
+    log(`joined room ${data.session_id}`);
+    if (!isHost) {
+      liveNs.emit('request-offer', { session_id: sessionId });
+    }
+  });
+  liveNs.on('host-ready', () => {
+    log('host-ready received');
+    if (!isHost) {
+      liveNs.emit('request-offer', { session_id: sessionId });
+    }
+  });
+  liveNs.on('presence-update', (data) => {
+    if (data.session_id !== sessionId) return;
+    renderParticipants(data.participants || []);
+    log(`presence ${data.participants?.length || 0}`);
+  });
+  liveNs.on('connected', (data)=>{
+    log(`connected as ${data.user_id}`);
+    if (!joined) {
+      liveNs.emit('join', { session_id: sessionId });
+      joined = true;
+    }
+  });
+  liveNs.on('error', (p)=>{
+    console.error('live error', p);
+    log(`error ${p?.message || p}`);
+    if (p?.message && p.message.toLowerCase().includes('block')) {
+      alert('You are blocked from this live and cannot join.');
+      window.location.href = '/live/browse';
+    }
+  });
+  liveNs.on('moderation', (p)=>{
+    log(`moderation ${p.action} on ${p.target_id}`);
+    if (p.action === 'block' || p.action === 'unblock') {
+      loadBlocked();
+    }
+  });
+  // blocked list (host only)
+  async function loadBlocked() {
+    if (!isHost) return;
+    try {
+      const resp = await fetch(`/live/${sessionId}/blocked`, { headers: { 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken } });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      renderBlocked(data.blocked || []);
+    } catch (err) { console.error('blocked fetch failed', err); }
+  }
+  function renderBlocked(list) {
+    if (!isHost) return;
+    const box = document.getElementById('blocked-box');
+    const container = document.getElementById('blocked-list');
+    if (!box || !container) return;
+    container.innerHTML = '';
+    if (!list.length) {
+      container.innerHTML = '<small class="text-muted">No blocked viewers.</small>';
+    } else {
+      list.forEach((u)=>{
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center justify-content-between border rounded px-2 py-1';
+        const left = document.createElement('div');
+        left.className = 'd-flex flex-column';
+        const name = document.createElement('a');
+        name.href = `/profile/${u.user_id}`;
+        name.className = 'fw-semibold text-decoration-none';
+        name.textContent = u.username || u.user_id;
+        const since = document.createElement('small');
+        since.className = 'text-muted';
+        since.textContent = u.since ? `Blocked since ${new Date(u.since).toLocaleString()}` : '';
+        left.appendChild(name);
+        left.appendChild(since);
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-success d-inline-flex align-items-center';
+        btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Unblock';
+        btn.addEventListener('click', async ()=>{
+          try {
+            await fetch(`/live/${sessionId}/moderate`, {
+              method: 'POST',
+              headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+              body: JSON.stringify({ action: 'unblock', target_id: u.user_id })
+            });
+            loadBlocked();
+          } catch (err) { console.error('unblock failed', err); }
+        });
+        row.appendChild(left);
+        row.appendChild(btn);
+        container.appendChild(row);
+      });
+    }
+    box.classList.remove('d-none');
+  }
+  // --- end WebRTC ---
+  // Camera controls (host only)
+  (() => {
+    if (!isHost) return;
+    const controls = document.getElementById('host-controls');
+    const preview = document.getElementById('host-preview');
+    const startBtn = document.getElementById('cam-start');
+    const stopBtn = document.getElementById('cam-stop');
+    const toggleBtn = document.getElementById('cam-toggle');
+    const endBtn = document.getElementById('end-live');
+    const statusEl = document.getElementById('cam-status');
+    const chatStatusLabel = document.getElementById('chat-status-label');
+    const toggleCommentsBtn = document.getElementById('toggle-comments-btn');
+    const slowButtons = Array.from(document.querySelectorAll('.slow-btn'));
+    let facingMode = 'user';
+    let commentsEnabled = true;
+    let slowSeconds = 0;
+
+    const setStatus = (msg) => { statusEl.textContent = msg || ''; };
+    const updateChatStatus = () => {
+      if (!chatStatusLabel || !toggleCommentsBtn) return;
+      chatStatusLabel.textContent = commentsEnabled ? 'Comments on' : 'Comments off';
+      chatStatusLabel.className = commentsEnabled ? 'badge bg-success' : 'badge bg-secondary';
+      toggleCommentsBtn.innerHTML = commentsEnabled
+        ? '<i class="bi bi-slash-circle me-1"></i>Disable comments'
+        : '<i class="bi bi-chat-dots me-1"></i>Enable comments';
+    };
+    const setSlowActive = (seconds) => {
+      slowButtons.forEach((btn) => {
+        const isActive = Number(btn.dataset.seconds) === Number(seconds);
+        btn.classList.toggle('active', isActive);
+      });
+    };
+    async function toggleComments() {
+      const nextEnabled = !commentsEnabled;
+      try {
+        const resp = await fetch(`/live/${sessionId}/comments/toggle`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({ enabled: nextEnabled }),
+        });
+        if (resp.ok) {
+          commentsEnabled = nextEnabled;
+          updateChatStatus();
+        }
+      } catch (err) {
+        console.error('toggle comments failed', err);
+      }
+    }
+    async function setSlowMode(seconds) {
+      try {
+        const resp = await fetch(`/live/${sessionId}/slowmode`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({ seconds }),
+        });
+        if (resp.ok) {
+          slowSeconds = seconds;
+          setSlowActive(seconds);
+        }
+      } catch (err) {
+        console.error('slow mode failed', err);
+      }
+    }
+
+    async function startCam() {
+      try {
+        setStatus('Requesting camera...');
+        const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true });
+        if (hostStream) {
+          hostStream.getTracks().forEach(t => t.stop());
+        }
+        hostStream = newStream;
+        preview.srcObject = hostStream;
+        preview.classList.remove('d-none');
+        await preview.play();
+        // Attach to existing peers
+        Object.values(peers).forEach(pc => {
+          pc.getSenders().forEach(s => pc.removeTrack(s));
+          hostStream.getTracks().forEach(t => pc.addTrack(t, hostStream));
+        });
+        // Process queued offer requests
+        if (pendingOfferViewers.size) {
+          for (const vid of Array.from(pendingOfferViewers)) {
+            await createOfferFor(vid);
+            pendingOfferViewers.delete(vid);
+          }
+        }
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        toggleBtn.disabled = false;
+        setStatus('Camera on');
+        // Notify viewers to request offers
+        liveNs.emit('host-ready', { session_id: sessionId });
+        log('host-ready emitted');
+      } catch (err) {
+        console.error('cam start error', err);
+        setStatus('Camera blocked or unavailable');
+        log(`cam error ${err.message}`);
+      }
+    }
+
+    function stopCam() {
+      if (hostStream) {
+        hostStream.getTracks().forEach(t => t.stop());
+        hostStream = null;
+      }
+      preview.srcObject = null;
+      preview.classList.add('d-none');
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      toggleBtn.disabled = true;
+      setStatus('Camera off');
+    }
+
+    async function toggleCam() {
+      facingMode = facingMode === 'user' ? 'environment' : 'user';
+      stopCam();
+      await startCam();
+      setStatus(`Camera on (${facingMode === 'user' ? 'front' : 'back'})`);
+    }
+
+    startBtn.addEventListener('click', (e)=>{ e.preventDefault(); startCam(); });
+    stopBtn.addEventListener('click', (e)=>{ e.preventDefault(); stopCam(); });
+    toggleBtn.addEventListener('click', (e)=>{ e.preventDefault(); toggleCam(); });
+    endBtn.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try {
+        await fetch(`/live/{{ session.id }}/end`, {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({})
+        });
+        window.location.href = '/live/browse';
+      } catch (err) {
+        console.error('end live failed', err);
+      }
+    });
+
+    controls.classList.remove('d-none');
+    window.addEventListener('beforeunload', stopCam);
+    if (toggleCommentsBtn) toggleCommentsBtn.addEventListener('click', (e)=>{ e.preventDefault(); toggleComments(); });
+    slowButtons.forEach((btn)=>{
+      btn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const seconds = Number(btn.dataset.seconds || 0);
+        setSlowMode(seconds);
+      });
+    });
+    updateChatStatus();
+    setSlowActive(slowSeconds);
+  })();
+  const reactionButtons = document.querySelectorAll('.reaction-btn');
+  reactionButtons.forEach((btn)=>{
+    btn.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const reactionType = btn.dataset.reaction;
+      try {
+        await fetch(`/live/${sessionId}/reaction`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({ reaction_type: reactionType }),
+        });
+      } catch (err) {
+        console.error('reaction failed', err);
+      }
+      showReactionBubble(reactionType);
+    });
+  });
+  document.getElementById('comment-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const msgInput = document.getElementById('comment-input');
+    const msg = msgInput.value.trim();
+    if (!msg) return;
+    try {
+      liveNs.emit('comment', { session_id: sessionId, message: msg });
+      msgInput.value='';
+    } catch (err) {
+      console.error('comment send failed', err);
+    }
+  });
+  function moderateViewer(targetId, action) {
+    liveNs.emit('moderate', { session_id: sessionId, target_id: targetId, action });
+  }
+</script>
+<style>
+  .chat-list { background:#f8fafc; }
+  .chat-row { display:flex; margin-bottom:8px; }
+  .chat-bubble { background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:10px 12px; box-shadow:0 4px 12px rgba(0,0,0,0.04); width:100%; }
+  .chat-meta { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+  .chat-username { font-weight:600; color:#0d6efd; text-decoration:none; }
+  .chat-username:hover { text-decoration:underline; }
+  .chat-time { color:#94a3b8; font-size:12px; }
+  .chat-text { color:#0f172a; font-size:14px; word-break:break-word; }
+  #blocked-box { background:#f8fafc; }
+  .reaction-bubble { background:#0d6efd; color:white; padding:8px 12px; border-radius:18px; animation: floatUp 1.5s ease-out forwards; }
+  @keyframes floatUp { from { transform: translateY(0); opacity:1;} to { transform: translateY(-40px); opacity:0;} }
+</style>
+{% endblock %}

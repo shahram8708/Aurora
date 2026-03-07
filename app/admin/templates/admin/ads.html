@@ -1,0 +1,84 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Ads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Ad Safety</p>
+    <h2 class="fw-bold text-dark mb-0">Campaign Review</h2>
+    <p class="text-muted mb-0">Approve, pause, or reject advertiser campaigns.</p>
+  </div>
+  <a class="btn btn-outline-primary btn-sm" href="/admin/ads?format=html">Refresh</a>
+</div>
+<div class="card stat-card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0 text-dark">Latest Campaigns</h5>
+    <span class="badge bg-secondary">/ads</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle mb-0" id="adsTable">
+      <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Abuse</th><th>Performance</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% if campaigns %}
+          {% for c in campaigns %}
+          <tr data-id="{{ c.id }}">
+            <td class="text-truncate" style="max-width:140px">{{ c.id }}</td>
+            <td>{{ c.name }}</td>
+            <td><span class="badge bg-{{ 'success' if c.status=='approved' else 'warning' if c.status=='paused' else 'secondary' }}">{{ c.status }}</span></td>
+            <td>{% if c.abuse_flag %}<span class="badge bg-danger">Flagged</span>{% else %}<span class="text-muted small">Clear</span>{% endif %}</td>
+            <td class="small text-muted">
+              {% if c.performance %}
+                CTR: {{ c.performance.ctr or 'n/a' }} · Impr: {{ c.performance.impressions or 'n/a' }} · Spend: {{ c.performance.spend or 'n/a' }}
+              {% else %}
+                No data
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-success" data-action="approve">Approve</button>
+                <button class="btn btn-outline-danger" data-action="reject">Reject</button>
+                <button class="btn btn-outline-secondary" data-action="pause">Pause</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="6" class="text-center text-muted">No campaigns</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const table = document.getElementById('adsTable');
+
+  async function updateCampaign(id, action){
+    const resp = await fetch(`/admin/ads/${id}/${action}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(text || 'Request failed');
+    }
+    location.reload();
+  }
+
+  table.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const row = btn.closest('tr[data-id]');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
+    updateCampaign(id, btn.getAttribute('data-action')).catch((err) => alert(err.message));
+  });
+})();
+</script>
+{% endblock %}

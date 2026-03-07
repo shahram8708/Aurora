@@ -1,0 +1,36 @@
+2026-03-07 18:14:45,751 INFO [app] unread_count
+2026-03-07 18:14:47,814 INFO [app] unread_count
+2026-03-07 18:17:30,923 ERROR [app] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask_jwt_extended\view_decorators.py", line 170, in decorator
+    return current_app.ensure_sync(fn)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahr\OneDrive\Documents\Social Media\app\reels\routes.py", line 19, in reel_feed
+    reels = personalized_reels(str(user.id), limit=12, offset=0)
+                                   ^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'id'
+2026-03-07 18:17:34,448 ERROR [app] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\shahr\AppData\Local\Programs\Python\Python314\Lib\site-packages\flask_jwt_extended\view_decorators.py", line 170, in decorator
+    return current_app.ensure_sync(fn)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahr\OneDrive\Documents\Social Media\app\reels\routes.py", line 19, in reel_feed
+    reels = personalized_reels(str(user.id), limit=12, offset=0)
+                                   ^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'id'
+2026-03-07 18:17:55,062 INFO [app] unread_count
+2026-03-07 18:17:55,106 INFO [app] unread_count
+2026-03-07 18:18:20,288 INFO [app] unread_count
+2026-03-07 18:18:20,308 INFO [app] unread_count
+2026-03-07 18:18:22,523 INFO [app] unread_count
+2026-03-07 18:18:22,547 INFO [app] unread_count

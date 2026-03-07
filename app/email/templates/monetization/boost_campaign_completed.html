@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Boost campaign</div>
+  <div class="headline">Campaign completed</div>
+  <p class="body-text">Hi {{ user.name }}, your boost campaign has finished. Here is a quick summary.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Campaign</td><td style="text-align:right;" class="body-text">{{ campaign_name }}</td></tr>
+      <tr><td class="muted">Spend</td><td style="text-align:right;" class="body-text">{{ spend }}</td></tr>
+      <tr><td class="muted">Result</td><td style="text-align:right;" class="body-text">{{ result_summary }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View full report"} %}
+  <p class="muted">We optimize delivery to minimize invalid traffic. Review detailed metrics in your dashboard.</p>
+{% endblock %}

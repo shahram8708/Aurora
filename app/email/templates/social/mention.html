@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Mention</div>
+  <div class="headline">{{ actor or 'Someone' }} mentioned you</div>
+  <p class="body-text">Hi {{ user.name }}, you were mentioned in a post. Review the context and join the conversation.</p>
+  <div class="card">
+    <div class="body-text">Post</div>
+    <div class="muted" style="margin-top:4px;">{{ meta.post_preview or 'Open to view.' }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View mention"} %}
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

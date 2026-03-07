@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Email verification</div>
+  <div class="headline">Hi {{ user.name }}, confirm your email</div>
+  <p class="body-text">Thanks for joining {{ brand }}. Please confirm this is the right inbox for your account so we can protect your login, alerts, and purchases.</p>
+  <div class="card">
+    <div class="muted">Secure link (expires in {{ expires_hours }} hours)</div>
+    {% with url=verify_link, label="Verify email" %}
+      {% include "components/button.html" %}
+    {% endwith %}
+    <p class="body-text" style="margin-top:6px;">If the button does not work, copy and paste this link:<br>{{ verify_link }}</p>
+  </div>
+  <div class="body-text" style="margin-top:10px;">If you did not sign up, you can ignore this message or <a href="{{ support_url }}" style="color:{{ primary_color }};text-decoration:none;">contact support</a>. Unverified accounts will be cleaned up automatically.</div>
+  <div class="muted" style="margin-top:14px;">Sent at {{ timestamp }} • {{ security_message }}</div>
+{% endblock %}

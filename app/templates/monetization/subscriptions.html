@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions{% endblock %}
+{% block content %}
+<style>
+.exclusive-card-item {position: relative; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #f9fafb; cursor: pointer;}
+.exclusive-card-item.selected {border-color: #111; box-shadow: 0 0 0 2px #111 inset;}
+.exclusive-card-item img {object-fit: cover; width: 100%; height: 100%;}
+.exclusive-badge {position: absolute; top: 8px; left: 8px; background: rgba(17,17,17,0.8); color: #fff; padding: 2px 8px; border-radius: 999px; font-size: 11px;}
+.exclusive-toggle {position: absolute; top: 8px; right: 8px;}
+.exclusive-panel.d-none {display: none;}
+</style>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4 class="mb-3">Creator Subscriptions</h4>
+    <form id="plan-form" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Monthly Price (INR)</label>
+        <input type="number" class="form-control" id="plan-price" min="10" step="10">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Benefits</label>
+        <input type="text" class="form-control" id="plan-benefits" placeholder="Comma separated">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">Create Plan</button>
+      </div>
+    </form>
+    <hr>
+    <div id="plans" class="row g-3"></div>
+  </div>
+</div>
+<div class="card shadow-sm mt-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Your Subscribers</h5>
+      <button class="btn btn-sm btn-outline-secondary" id="refresh-subscribers">Refresh</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle" id="subscribers-table">
+        <thead>
+          <tr>
+            <th>Subscriber</th>
+            <th>Status</th>
+            <th>Current Period End</th>
+            <th>Subscription ID</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="text-muted small" id="subs-note">Shows active or pending subscribers.</div>
+  </div>
+</div>
+<div class="card shadow-sm mt-3" id="exclusive-card" style="display:none;">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <div>
+        <h5 class="mb-1">Subscriber-only content</h5>
+        <div class="text-muted small">Pick posts and reels that only paying subscribers can see on your profile.</div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-secondary" id="exclusive-count">0 selected</span>
+        <button class="btn btn-primary btn-sm" id="exclusive-save" type="button" disabled>Save selection</button>
+      </div>
+    </div>
+    <div class="alert alert-warning small mt-3 d-none" id="exclusive-hint"></div>
+    <ul class="nav nav-pills mt-3 mb-3" id="exclusive-tabs">
+      <li class="nav-item"><button class="nav-link active" type="button" data-target="exclusive-posts">Posts</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-target="exclusive-reels">Reels</button></li>
+    </ul>
+    <div id="exclusive-posts" class="exclusive-panel">
+      <div class="row g-3" id="exclusive-post-grid"></div>
+      <div class="text-muted small" id="exclusive-post-empty">No posts yet.</div>
+    </div>
+    <div id="exclusive-reels" class="exclusive-panel d-none">
+      <div class="row g-3" id="exclusive-reel-grid"></div>
+      <div class="text-muted small" id="exclusive-reel-empty">No reels yet.</div>
+    </div>
+  </div>
+</div>
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const withCsrf = (opts = {}) => ({
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken, 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) },
+    ...opts,
+  });
+
+  const plansWrap = document.getElementById('plans');
+  const planForm = document.getElementById('plan-form');
+  const planPriceInput = document.getElementById('plan-price');
+  const planBenefitsInput = document.getElementById('plan-benefits');
+  const planSubmitBtn = planForm?.querySelector('button[type="submit"]');
+  const exclusiveCard = document.getElementById('exclusive-card');
+  const exclusiveSaveBtn = document.getElementById('exclusive-save');
+  const exclusiveHint = document.getElementById('exclusive-hint');
+  const exclusiveCount = document.getElementById('exclusive-count');
+  const exclusiveTabs = document.querySelectorAll('#exclusive-tabs .nav-link');
+  const postGrid = document.getElementById('exclusive-post-grid');
+  const reelGrid = document.getElementById('exclusive-reel-grid');
+  const postEmpty = document.getElementById('exclusive-post-empty');
+  const reelEmpty = document.getElementById('exclusive-reel-empty');
+  let exclusiveSelection = { posts: [], reels: [] };
+  let hasPlan = false;
+
+  const updateExclusiveCount = () => {
+    if (!exclusiveCount) return;
+    const count = (exclusiveSelection.posts?.length || 0) + (exclusiveSelection.reels?.length || 0);
+    exclusiveCount.textContent = `${count} selected`;
+  };
+
+  const applyExclusiveUi = () => {
+    document.querySelectorAll('.exclusive-card-item').forEach((card) => {
+      const type = card.dataset.type;
+      const id = card.dataset.id;
+      const selected = (exclusiveSelection[type] || []).includes(id);
+      card.classList.toggle('selected', selected);
+      const toggle = card.querySelector('.exclusive-toggle');
+      if (toggle) toggle.textContent = selected ? 'Subscriber only' : 'Make exclusive';
+    });
+    updateExclusiveCount();
+  };
+
+  const toggleExclusive = (id, type) => {
+    const bucket = new Set(exclusiveSelection[type] || []);
+    if (bucket.has(id)) {
+      bucket.delete(id);
+    } else {
+      bucket.add(id);
+    }
+    exclusiveSelection[type] = Array.from(bucket);
+    applyExclusiveUi();
+    if (exclusiveSaveBtn) exclusiveSaveBtn.disabled = false;
+  };
+
+  const renderExclusiveGrid = (items, grid, emptyNode, type) => {
+    if (!grid) return;
+    grid.innerHTML = '';
+    const selection = exclusiveSelection[type] || [];
+    if (!items.length) {
+      if (emptyNode) emptyNode.style.display = 'block';
+      return;
+    }
+    if (emptyNode) emptyNode.style.display = 'none';
+    items.forEach((item) => {
+      const col = document.createElement('div');
+      col.className = 'col-6 col-md-4 col-lg-3';
+      const selected = selection.includes(item.id);
+      const ratioStyle = type === 'reels' ? 'style="aspect-ratio:9/16;"' : 'style="aspect-ratio:1/1;"';
+      col.innerHTML = `
+        <div class="exclusive-card-item ${selected ? 'selected' : ''}" data-id="${item.id}" data-type="${type}">
+          <span class="exclusive-badge">${type === 'posts' ? 'Post' : 'Reel'}</span>
+          <button class="btn btn-light btn-sm exclusive-toggle" type="button">${selected ? 'Subscriber only' : 'Make exclusive'}</button>
+          <div class="bg-light" ${ratioStyle}>
+            ${item.thumb ? `<img src="${item.thumb}" alt="${item.caption || type}">` : '<div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted small">No preview</div>'}
+          </div>
+          <div class="p-2 small text-truncate">${item.caption || (type === 'posts' ? 'Post' : 'Reel')}</div>
+        </div>`;
+      const card = col.querySelector('.exclusive-card-item');
+      card?.addEventListener('click', () => toggleExclusive(item.id, type));
+      grid.appendChild(col);
+    });
+    applyExclusiveUi();
+  };
+
+  const loadExclusiveContent = async () => {
+    if (!exclusiveCard || !hasPlan) {
+      if (exclusiveCard) exclusiveCard.style.display = 'none';
+      return;
+    }
+    if (exclusiveHint) exclusiveHint.classList.add('d-none');
+    if (exclusiveSaveBtn) exclusiveSaveBtn.disabled = true;
+    try {
+      const res = await fetch('/monetization/subscriptions/content', withCsrf());
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Create a plan first');
+      exclusiveSelection = data.selected || { posts: [], reels: [] };
+      exclusiveCard.style.display = 'block';
+      renderExclusiveGrid(data.posts || [], postGrid, postEmpty, 'posts');
+      renderExclusiveGrid(data.reels || [], reelGrid, reelEmpty, 'reels');
+      if (exclusiveSaveBtn) exclusiveSaveBtn.disabled = false;
+      updateExclusiveCount();
+    } catch (err) {
+      if (exclusiveCard) exclusiveCard.style.display = 'none';
+      if (exclusiveHint) {
+        exclusiveHint.textContent = err.message || 'Create a subscription plan to pick exclusive content.';
+        exclusiveHint.classList.remove('d-none');
+      }
+    }
+  };
+
+  const saveExclusiveSelection = async () => {
+    if (!exclusiveSaveBtn) return;
+    exclusiveSaveBtn.disabled = true;
+    exclusiveSaveBtn.textContent = 'Saving...';
+    try {
+      const res = await fetch('/monetization/subscriptions/content', withCsrf({ method:'POST', body: JSON.stringify(exclusiveSelection) }));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to save selection');
+      exclusiveSelection = { posts: data.posts || [], reels: data.reels || [] };
+      if (exclusiveHint) {
+        exclusiveHint.textContent = 'Saved for subscribers.';
+        exclusiveHint.classList.remove('d-none', 'alert-warning');
+        exclusiveHint.classList.add('alert-success');
+      }
+    } catch (err) {
+      if (exclusiveHint) {
+        exclusiveHint.textContent = err.message || 'Unable to save right now.';
+        exclusiveHint.classList.remove('d-none', 'alert-success');
+        exclusiveHint.classList.add('alert-warning');
+      }
+    } finally {
+      exclusiveSaveBtn.disabled = false;
+      exclusiveSaveBtn.textContent = 'Save selection';
+      applyExclusiveUi();
+    }
+  };
+
+  const renderPlans = (plans = []) => {
+    plansWrap.innerHTML = '';
+    if (!plans.length) {
+      plansWrap.innerHTML = '<div class="col-12 text-muted">No plans yet</div>';
+      if (planPriceInput) planPriceInput.disabled = false;
+      if (planBenefitsInput) planBenefitsInput.disabled = false;
+      if (planSubmitBtn) {
+        planSubmitBtn.disabled = false;
+        planSubmitBtn.textContent = 'Create Plan';
+      }
+      hasPlan = false;
+      if (exclusiveCard) exclusiveCard.style.display = 'none';
+      return;
+    }
+    hasPlan = true;
+    plans.forEach((plan) => {
+      let benefits = '';
+      if (Array.isArray(plan.benefits)) {
+        benefits = plan.benefits.filter(Boolean).join(', ');
+      } else if (plan.benefits && Array.isArray(plan.benefits.perks)) {
+        benefits = plan.benefits.perks.filter(Boolean).join(', ');
+      } else if (plan.benefits) {
+        benefits = Object.values(plan.benefits).filter((v) => typeof v === 'string').join(', ');
+      }
+      const card = document.createElement('div');
+      card.className = 'col-md-4';
+      card.innerHTML = `
+        <div class="p-3 border rounded h-100 d-flex flex-column gap-1">
+          <div class="fw-semibold">₹${(plan.price || 0) / 100}/mo</div>
+          <div class="small text-muted">Plan ID: ${plan.id}</div>
+          ${plan.razorpay_plan_id ? `<div class="small text-muted">Razorpay: ${plan.razorpay_plan_id}</div>` : ''}
+          ${benefits ? `<div class="small">Benefits: ${benefits}</div>` : ''}
+        </div>`;
+      plansWrap.appendChild(card);
+    });
+    // Disable creation if a plan already exists.
+    if (planPriceInput) planPriceInput.disabled = true;
+    if (planBenefitsInput) planBenefitsInput.disabled = true;
+    if (planSubmitBtn) {
+      planSubmitBtn.disabled = true;
+      planSubmitBtn.textContent = 'Plan already exists';
+    }
+  };
+
+  const loadPlans = async () => {
+    const res = await fetch('/monetization/subscriptions/plans', withCsrf());
+    if (!res.ok) {
+      hasPlan = false;
+      if (exclusiveCard) exclusiveCard.style.display = 'none';
+      return;
+    }
+    const data = await res.json();
+    renderPlans(data);
+    if (hasPlan) {
+      loadExclusiveContent();
+    }
+  };
+
+  planForm?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const price = Number(planPriceInput?.value || 0) * 100;
+    const benefits = (planBenefitsInput?.value || '').split(',').map(s=>s.trim()).filter(Boolean);
+    const res = await fetch('/monetization/subscriptions/plan', withCsrf({ method:'POST', body: JSON.stringify({ price, benefits }) }));
+    const plan = await res.json();
+    if (!res.ok) {
+      window.alert(plan.error || 'Unable to create plan');
+      return;
+    }
+    renderPlans([{ id: plan.id, price, benefits, razorpay_plan_id: plan.razorpay_plan_id }]);
+    loadPlans();
+  });
+  async function loadSubscribers(){
+    const tbody = document.querySelector('#subscribers-table tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Loading...</td></tr>';
+    try {
+      const res = await fetch('/monetization/subscriptions/creator/subscribers', withCsrf());
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      if (!tbody) return;
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No subscribers yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      data.forEach((s)=>{
+        const tr = document.createElement('tr');
+        const profileUrl = `/users/${s.subscriber_id}`;
+        tr.innerHTML = `
+          <td><a href="${profileUrl}">${s.username || s.subscriber_id}</a></td>
+          <td>${s.status}</td>
+          <td>${s.current_period_end || ''}</td>
+          <td class="text-truncate" style="max-width:160px;">${s.subscription_id}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-danger">Unable to load subscribers</td></tr>';
+    }
+  }
+
+  document.getElementById('refresh-subscribers').addEventListener('click', (e)=>{
+    e.preventDefault();
+    loadSubscribers();
+  });
+
+  exclusiveSaveBtn?.addEventListener('click', saveExclusiveSelection);
+
+  if (exclusiveTabs && exclusiveTabs.length) {
+    exclusiveTabs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        exclusiveTabs.forEach((b) => b.classList.toggle('active', b === btn));
+        const target = btn.dataset.target;
+        document.querySelectorAll('.exclusive-panel').forEach((panel) => {
+          panel.classList.toggle('d-none', panel.id !== target);
+        });
+      });
+    });
+  }
+
+  loadSubscribers();
+
+  loadPlans();
+</script>
+{% endblock %}

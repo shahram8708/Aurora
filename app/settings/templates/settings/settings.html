@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="fw-semibold">Account Center</h2>
+    <p class="text-muted mb-0">Manage privacy, security, and preferences.</p>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title mb-0">Privacy</h5>
+          <span class="badge bg-info">Profile</span>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="is_private" {% if settings.is_private %}checked{% endif %}>
+          <label class="form-check-label" for="is_private">Private account</label>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="search_visibility" {% if settings.search_visibility %}checked{% endif %}>
+          <label class="form-check-label" for="search_visibility">Appear in search</label>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="show_activity" {% if settings.show_activity %}checked{% endif %}>
+          <label class="form-check-label" for="show_activity">Show activity status</label>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Story visibility</label>
+          <select class="form-select" id="story_visibility">
+            <option value="followers" {% if settings.story_visibility=='followers' %}selected{% endif %}>Followers</option>
+            <option value="close_friends" {% if settings.story_visibility=='close_friends' %}selected{% endif %}>Close friends</option>
+            <option value="everyone" {% if settings.story_visibility=='everyone' %}selected{% endif %}>Everyone</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">DM privacy</label>
+          <select class="form-select" id="dm_privacy">
+            <option value="followers" {% if settings.dm_privacy=='followers' %}selected{% endif %}>Followers only</option>
+            <option value="everyone" {% if settings.dm_privacy=='everyone' %}selected{% endif %}>Everyone</option>
+            <option value="none" {% if settings.dm_privacy=='none' %}selected{% endif %}>No new requests</option>
+          </select>
+        </div>
+        <div id="privacy-status" class="alert alert-success d-none py-2 px-3 small"></div>
+        <button class="btn btn-primary w-100" id="save-privacy">Save Privacy</button>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title mb-0">Security</h5>
+          <span class="badge bg-warning text-dark">Protection</span>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="two_factor" {% if settings.two_factor_enabled %}checked{% endif %}>
+          <label class="form-check-label" for="two_factor">Enable 2FA</label>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Language</label>
+          <select class="form-select" id="language">
+            <option value="en" {% if settings.language=='en' %}selected{% endif %}>English</option>
+            <option value="es" {% if settings.language=='es' %}selected{% endif %}>Español</option>
+            <option value="fr" {% if settings.language=='fr' %}selected{% endif %}>Français</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Theme</label>
+          <select class="form-select" id="theme">
+            <option value="light" {% if settings.theme=='light' %}selected{% endif %}>Light</option>
+            <option value="dark" {% if settings.theme=='dark' %}selected{% endif %}>Dark</option>
+            <option value="auto" {% if settings.theme=='auto' %}selected{% endif %}>Auto</option>
+          </select>
+        </div>
+        <div id="security-status" class="alert alert-success d-none py-2 px-3 small"></div>
+        <div id="preferences-status" class="alert alert-success d-none py-2 px-3 small"></div>
+        <button class="btn btn-primary w-100" id="save-preferences">Save Preferences</button>
+        <hr>
+        <button class="btn btn-outline-secondary w-100" id="export-data">Request Data Download</button>
+        <div class="input-group mt-2">
+          <input type="text" class="form-control" id="export-job-id" placeholder="Last job id" aria-label="Export job id">
+          <button class="btn btn-outline-primary" id="check-export">Check Export Status</button>
+        </div>
+        <div class="alert alert-secondary d-none mt-2 py-2 px-3 small" id="export-status">No export requested yet.</div>
+        <button class="btn btn-outline-info w-100 mt-3" id="clear-cache">Clear Cache</button>
+        <button class="btn btn-outline-danger w-100 mt-2" id="logout-all">Revoke all sessions</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mt-1">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title mb-0">Connected Accounts</h5>
+          <span class="badge bg-secondary">Link</span>
+        </div>
+        <p class="text-muted small mb-3">Add or remove sign-in providers connected to your account.</p>
+        <div class="d-flex gap-2 mb-2">
+          <select class="form-select" id="connect-provider" aria-label="Provider">
+            <option value="google" selected>Google</option>
+            <option value="apple">Apple</option>
+            <option value="facebook">Facebook</option>
+            <option value="github">GitHub</option>
+            <option value="twitter">Twitter</option>
+            <option value="email">Email</option>
+          </select>
+          <input type="email" class="form-control" id="connect-email" placeholder="you@example.com" aria-label="Email">
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <input type="text" class="form-control" id="connect-otp" placeholder="Enter 6-digit code" aria-label="OTP">
+          <button class="btn btn-outline-secondary" id="send-link-otp">Send code</button>
+          <button class="btn btn-primary" id="link-account">Link</button>
+        </div>
+        <div id="connect-status" class="alert alert-success d-none py-2 px-3 small"></div>
+        <div class="list-group" id="connected-list"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title mb-0">Device Sessions</h5>
+          <span class="badge bg-dark">Security</span>
+        </div>
+        <p class="text-muted small mb-2">Review where you are logged in and revoke access instantly.</p>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Device</th>
+                <th scope="col">IP</th>
+                <th scope="col">Last Active</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="session-rows">
+              <tr><td colspan="4" class="text-muted">Loading sessions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="sessions-status" class="alert alert-success d-none py-2 px-3 small"></div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-fill" id="refresh-sessions">Refresh sessions</button>
+          <button class="btn btn-outline-danger flex-fill" id="revoke-sessions">Revoke all sessions</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  <div class="row g-3 mt-1">
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="card-title mb-0">Professional Mode</h5>
+            <span class="badge bg-success">Profile</span>
+          </div>
+          <p class="text-muted small mb-3">Promote your profile, pick a category, and unlock insights.</p>
+          {% if professional_form %}
+          <form method="post" action="{{ url_for('users.update_professional') }}">
+            {{ professional_form.hidden_tag() }}
+            <div class="form-check form-switch mb-2">
+              {{ professional_form.is_professional(class_='form-check-input', id='is_professional') }}
+              <label class="form-check-label" for="is_professional">Enable professional profile</label>
+            </div>
+            <div class="mb-3">
+              {{ professional_form.category.label(class_='form-label') }}
+              {{ professional_form.category(class_='form-select') }}
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Save professional settings</button>
+          </form>
+          {% else %}
+          <div class="alert alert-secondary mb-0">Professional tools are available after logging in.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm border-danger h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="card-title mb-0">Account Status</h5>
+            <span class="badge bg-danger">Danger</span>
+          </div>
+          <p class="text-muted small">Need a break or leaving for good? You can pause or schedule removal.</p>
+          <form method="post" action="{{ url_for('settings.deactivate_account') }}" class="mb-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-warning w-100" type="submit">Temporarily deactivate</button>
+          </form>
+          <form method="post" action="{{ url_for('settings.delete_account') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-danger w-100" type="submit">Delete account permanently</button>
+          </form>
+          <div class="small text-muted mt-2">You can reactivate by logging in again before final removal.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+function getCookie(name){
+  const value = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+  return value ? decodeURIComponent(value.split('=')[1]) : '';
+}
+const csrfToken = getCookie('csrf_access_token') || document.querySelector('meta[name="csrf-token"]')?.content || '';
+function authHeaders(extra={}) {
+  return Object.assign({'X-CSRF-TOKEN': csrfToken}, extra);
+}
+function postJSON(url, body) {
+  return fetch(url, {method:'POST', credentials:'include', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(body)}).then(r=>{
+    if(!r.ok) throw new Error('Request failed');
+    return r.json();
+  });
+}
+function getJSON(url) {
+  return fetch(url, {credentials:'include', headers: authHeaders()}).then(r=>{ if(!r.ok) throw new Error('Request failed'); return r.json(); });
+}
+function setBusy(btnId, busy, busyText){
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+  if(busy){
+    btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
+    btn.disabled = true;
+    if(busyText){ btn.textContent = busyText; }
+  } else {
+    btn.disabled = false;
+    if(btn.dataset.originalText){ btn.textContent = btn.dataset.originalText; }
+  }
+}
+function flashStatus(elId, text, variant='success'){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.className = 'alert alert-' + variant + ' py-2 px-3 small';
+  el.textContent = text;
+  el.classList.remove('d-none');
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(()=>{ el.classList.add('d-none'); }, 4000);
+}
+let linkedAccounts = {{ (settings.linked_accounts if settings else {}) | tojson }};
+let lastExportJobId = '';
+
+function savePrivacy(){
+  setBusy('save-privacy', true, 'Saving...');
+  postJSON('/settings/api/privacy', {
+    is_private: document.getElementById('is_private').checked,
+    search_visibility: document.getElementById('search_visibility').checked,
+    show_activity: document.getElementById('show_activity').checked,
+    story_visibility: document.getElementById('story_visibility').value,
+    dm_privacy: document.getElementById('dm_privacy').value
+  }).then(()=>{
+    flashStatus('privacy-status', 'Privacy settings saved');
+  }).catch(()=>{
+    flashStatus('privacy-status', 'Could not save privacy', 'danger');
+  }).finally(()=> setBusy('save-privacy', false));
+}
+function savePreferences(){
+  setBusy('save-preferences', true, 'Saving...');
+  postJSON('/settings/api/preferences', {
+    language: document.getElementById('language').value,
+    theme: document.getElementById('theme').value
+  }).then(() => {
+    const theme = document.getElementById('theme').value;
+    localStorage.setItem('theme', theme);
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    flashStatus('preferences-status', 'Preferences saved');
+  }).catch(()=>{
+    flashStatus('preferences-status', 'Could not save preferences', 'danger');
+  }).finally(()=> setBusy('save-preferences', false));
+}
+function saveSecurity(){
+  postJSON('/settings/api/security', { two_factor_enabled: document.getElementById('two_factor').checked })
+    .then(()=> flashStatus('security-status', 'Security updated'))
+    .catch(()=> flashStatus('security-status', 'Could not update security', 'danger'));
+}
+function exportData(){
+  setBusy('export-data', true, 'Requesting...');
+  postJSON('/settings/api/export', {}).then((data)=>{
+    lastExportJobId = data.job_id || '';
+    document.getElementById('export-job-id').value = lastExportJobId;
+    setExportStatus('Export queued. Keep this job id to check status.');
+  }).catch(()=>{
+    setExportStatus('Could not start export', 'danger');
+  }).finally(()=> setBusy('export-data', false));
+}
+function clearCache(){
+  // Hit the actual cache-clear API so the button works
+  postJSON('/settings/api/cache/clear', {})
+    .then(()=> setExportStatus('Cache cleared', 'success'))
+    .catch(()=> setExportStatus('Cache clear failed', 'danger'));
+}
+function logoutAll(){ revokeSessions(); }
+function setExportStatus(text, variant){
+  const el = document.getElementById('export-status');
+  if(el){
+    const color = variant === 'danger' ? 'alert-danger' : (variant === 'success' ? 'alert-success' : 'alert-secondary');
+    el.className = 'alert ' + color + ' mt-2 py-2 px-3 small';
+    el.textContent = text;
+    el.classList.remove('d-none');
+  }
+}
+function formatDateTime(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  if(Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {dateStyle:'medium', timeStyle:'short'});
+}
+function checkExportStatus(){
+  const jobId = document.getElementById('export-job-id').value.trim() || lastExportJobId;
+  if(!jobId){ setExportStatus('No job id available yet.'); return; }
+  getJSON('/settings/api/export/' + encodeURIComponent(jobId))
+    .then(data=>{
+      let message = 'Status: ' + (data.status || 'unknown');
+      if(data.url){ message += ' | Download: ' + data.url; }
+      if(data.expires_at){ message += ' | Expires: ' + data.expires_at; }
+      setExportStatus(message, 'success');
+    })
+    .catch(()=> setExportStatus('Could not check export status', 'danger'));
+}
+function renderLinkedAccounts(){
+  const list = document.getElementById('connected-list');
+  if(!list){ return; }
+  list.innerHTML = '';
+  const entries = Object.entries(linkedAccounts || {});
+  if(!entries.length){
+    list.innerHTML = '<div class="list-group-item text-muted">No linked accounts yet.</div>';
+    return;
+  }
+  entries.forEach(([provider, metadata]) => {
+    const item = document.createElement('div');
+    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+    const metaText = metadata && Object.keys(metadata).length ? JSON.stringify(metadata) : 'No metadata';
+    item.innerHTML = '<div><div class="fw-semibold text-capitalize">' + provider + '</div><div class="text-muted small">' + metaText + '</div></div>';
+    const button = document.createElement('button');
+    button.className = 'btn btn-sm btn-outline-danger';
+    button.textContent = 'Disconnect';
+    button.onclick = () => disconnectAccount(provider);
+    item.appendChild(button);
+    list.appendChild(item);
+  });
+}
+function sendLinkOtp(){
+  const provider = document.getElementById('connect-provider').value;
+  const email = document.getElementById('connect-email').value.trim();
+  if(provider !== 'google'){
+    flashStatus('connect-status', 'OTP is only required for Google linking', 'secondary');
+    return;
+  }
+  if(!email){
+    alert('Email is required');
+    return;
+  }
+  setBusy('send-link-otp', true, 'Sending...');
+  postJSON('/settings/api/connected/request-otp', {provider, email}).then(()=>{
+    flashStatus('connect-status', 'Code sent to ' + email);
+  }).catch(()=>{
+    flashStatus('connect-status', 'Could not send code', 'danger');
+  }).finally(()=> setBusy('send-link-otp', false));
+}
+function linkAccount(){
+  const provider = document.getElementById('connect-provider').value;
+  const email = document.getElementById('connect-email').value.trim();
+  const otp = document.getElementById('connect-otp').value.trim();
+  let metadata = {};
+  if(provider === 'google'){
+    if(!email){ alert('Email is required'); return; }
+    if(!otp){ alert('OTP is required'); return; }
+    metadata = { email };
+  } else if(email){
+    metadata = { email };
+  }
+  setBusy('link-account', true, 'Linking...');
+  postJSON('/settings/api/connected', {provider, metadata, otp}).then((data)=>{
+    linkedAccounts = data.linked_accounts || {};
+    document.getElementById('connect-email').value = '';
+    document.getElementById('connect-otp').value = '';
+    renderLinkedAccounts();
+    flashStatus('connect-status', 'Account linked');
+  }).catch((err)=>{
+    flashStatus('connect-status', 'Could not link account', 'danger');
+  }).finally(()=> setBusy('link-account', false));
+}
+function disconnectAccount(provider){
+  fetch('/settings/api/connected/' + encodeURIComponent(provider), {method:'DELETE', headers: authHeaders(), credentials:'include'})
+    .then(r=>r.json())
+    .then(data=>{
+      linkedAccounts = data.linked_accounts || {};
+      renderLinkedAccounts();
+      flashStatus('connect-status', 'Disconnected');
+    })
+    .catch(()=> flashStatus('connect-status', 'Could not disconnect', 'danger'));
+}
+function renderSessions(rows){
+  const tbody = document.getElementById('session-rows');
+  if(!tbody){ return; }
+  tbody.innerHTML = '';
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No active sessions.</td></tr>';
+    return;
+  }
+  rows.forEach((row)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (row.device || 'Unknown') + '</td>' +
+                   '<td>' + (row.ip || '-') + '</td>' +
+                   '<td>' + formatDateTime(row.last_active_at) + '</td>' +
+                   '<td>' + (row.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Revoked</span>') + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+function loadSessions(){
+  const tbody = document.getElementById('session-rows');
+  if(tbody){ tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Loading sessions...</td></tr>'; }
+  getJSON('/settings/api/sessions')
+    .then(data=>{
+      renderSessions(Array.isArray(data) ? data : []);
+      flashStatus('sessions-status', 'Sessions refreshed', 'secondary');
+    })
+    .catch(()=> flashStatus('sessions-status', 'Could not load sessions', 'danger'));
+}
+function revokeSessions(){
+  setBusy('revoke-sessions', true, 'Revoking...');
+  fetch('/settings/api/sessions', {method:'DELETE', headers: authHeaders(), credentials:'include'})
+    .then(()=>{
+      loadSessions();
+      flashStatus('sessions-status', 'All sessions revoked', 'warning');
+    })
+    .catch(()=> flashStatus('sessions-status', 'Could not revoke sessions', 'danger'))
+    .finally(()=> setBusy('revoke-sessions', false));
+}
+
+document.getElementById('save-privacy').onclick=savePrivacy;
+document.getElementById('save-preferences').onclick=savePreferences;
+document.getElementById('two_factor').onchange=saveSecurity;
+document.getElementById('export-data').onclick=exportData;
+document.getElementById('clear-cache').onclick=clearCache;
+document.getElementById('logout-all').onclick=logoutAll;
+document.getElementById('check-export').onclick=checkExportStatus;
+document.getElementById('link-account').onclick=linkAccount;
+document.getElementById('send-link-otp').onclick=sendLinkOtp;
+document.getElementById('refresh-sessions').onclick=loadSessions;
+document.getElementById('revoke-sessions').onclick=revokeSessions;
+renderLinkedAccounts();
+loadSessions();
+</script>
+{% endblock %}

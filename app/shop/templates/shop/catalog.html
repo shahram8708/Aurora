@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Shop{% endblock %}
+{% block content %}
+<style>
+  .product-card {border:1px solid #eee; border-radius:12px; overflow:hidden; transition:transform .2s ease, box-shadow .2s ease;}
+  .product-card:hover {transform:translateY(-4px); box-shadow:0 10px 30px rgba(0,0,0,0.08);}
+  .price-tag {font-weight:700; font-size:1.1rem;}
+</style>
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">Shop</h4>
+    <small class="text-muted">Curated products from creators</small>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form class="d-flex" method="get">
+      <select class="form-select me-2" name="category" onchange="this.form.submit()">
+        <option value="">All categories</option>
+        {% for cat in ['Fashion','Beauty','Tech','Fitness','Art','Home','Food'] %}
+        <option value="{{ cat }}" {% if request.args.get('category')==cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-outline-secondary" type="submit">Filter</button>
+    </form>
+    <a class="btn btn-outline-primary" href="/shop/wishlist">Wishlist</a>
+    <a class="btn btn-primary" href="/shop/products/new">Sell a product</a>
+  </div>
+</div>
+
+<div class="row g-3 mt-3">
+  {% set cart_ids = cart_product_ids or [] %}
+  {% set wish_ids = wishlist_ids or [] %}
+  {% for product in products %}
+  {% set pid = product.id|string %}
+  {% set in_cart = pid in cart_ids %}
+  {% set in_wishlist = pid in wish_ids %}
+  <div class="col-6 col-md-4 col-lg-6">
+    <div class="product-card h-100 p-2 bg-white">
+      {% if product.images %}
+      <img src="{{ product.images[0].image_url }}" class="img-fluid rounded" alt="{{ product.title }}">
+      {% else %}
+      <div class="bg-secondary bg-opacity-10 rounded ratio ratio-1x1"></div>
+      {% endif %}
+      <div class="p-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-1">{{ product.title }}</h6>
+          <span class="price-tag">₹{{ '%.2f' % (product.price/100) }}</span>
+        </div>
+        <p class="text-muted small mb-2">{{ product.category or 'General' }}</p>
+        <div class="d-flex gap-2">
+          <a href="/shop/products/{{ product.id }}" class="btn btn-sm btn-primary flex-fill">View</a>
+          <button class="btn btn-sm btn-outline-dark cart-btn" data-product-id="{{ pid }}" data-in-cart="{{ 'true' if in_cart else 'false' }}">{{ 'Remove from cart' if in_cart else 'Add' }}</button>
+          <button class="btn btn-sm btn-outline-danger wish-btn" data-product-id="{{ pid }}" data-in-wish="{{ 'true' if in_wishlist else 'false' }}">{{ 'Remove wishlist' if in_wishlist else 'Wishlist' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<nav class="mt-4">
+  <ul class="pagination justify-content-center">
+    {% if pagination.has_prev %}
+    <li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}">Prev</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ pagination.page }} / {{ pagination.pages }}</span></li>
+    {% if pagination.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+
+<div class="mt-5">
+  <div class="d-flex align-items-center mb-3">
+    <h5 class="mb-0">Popular picks</h5>
+    <span class="text-muted small ms-2">Top performing products</span>
+  </div>
+  <div class="row g-3">
+    {% for product in popular %}
+    {% set pid = product.id|string %}
+    {% set in_cart = pid in cart_ids %}
+    {% set in_wishlist = pid in wish_ids %}
+    <div class="col-6 col-md-3">
+      <div class="product-card p-2 bg-white">
+        <p class="mb-1 fw-semibold">{{ product.title }}</p>
+        <p class="text-muted small mb-2">₹{{ '%.2f' % (product.price/100) }}</p>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-primary flex-fill" href="/shop/products/{{ product.id }}">View</a>
+          <button class="btn btn-sm btn-outline-dark cart-btn" data-product-id="{{ pid }}" data-in-cart="{{ 'true' if in_cart else 'false' }}">{{ 'Remove' if in_cart else 'Add' }}</button>
+          <button class="btn btn-sm btn-outline-danger wish-btn" data-product-id="{{ pid }}" data-in-wish="{{ 'true' if in_wishlist else 'false' }}">{{ 'Remove' if in_wishlist else 'Wishlist' }}</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  function buildHeaders() {
+    const headers = {'Content-Type':'application/json'};
+    if (csrfToken) { headers['X-CSRFToken'] = csrfToken; headers['X-CSRF-Token'] = csrfToken; }
+    return headers;
+  }
+
+  function setCartState(btn, inCart) {
+    btn.dataset.inCart = inCart ? 'true' : 'false';
+    btn.textContent = inCart ? 'Remove from cart' : 'Add';
+  }
+
+  function setWishState(btn, inWish) {
+    btn.dataset.inWish = inWish ? 'true' : 'false';
+    btn.textContent = inWish ? 'Remove wishlist' : 'Wishlist';
+  }
+
+  async function toggleCart(btn) {
+    const productId = btn.dataset.productId;
+    const inCart = btn.dataset.inCart === 'true';
+    btn.disabled = true;
+    try {
+      const headers = buildHeaders();
+      const url = inCart ? '/commerce/cart/remove' : '/commerce/cart/add';
+      const body = JSON.stringify({product_id: productId, quantity: 1});
+      const res = await fetch(url, {method:'POST', headers, body});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setCartState(btn, !inCart);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function toggleWish(btn) {
+    const productId = btn.dataset.productId;
+    btn.disabled = true;
+    try {
+      const headers = buildHeaders();
+      const res = await fetch(`/shop/products/${productId}/wishlist`, {method:'POST', headers});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setWishState(btn, data.added === true);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.querySelectorAll('.cart-btn').forEach((btn) => {
+    setCartState(btn, btn.dataset.inCart === 'true');
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleCart(btn);
+    });
+  });
+
+  document.querySelectorAll('.wish-btn').forEach((btn) => {
+    setWishState(btn, btn.dataset.inWish === 'true');
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleWish(btn);
+    });
+  });
+</script>
+{% endblock %}

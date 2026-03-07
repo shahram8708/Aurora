@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Wishlist{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h4 class="mb-0">Wishlist</h4>
+  <span class="text-muted small ms-2">Saved products</span>
+</div>
+<div class="row g-3">
+  {% for product, saved_at in items %}
+  <div class="col-6 col-md-3">
+    <div class="p-2 bg-white rounded shadow-sm h-100">
+      <p class="mb-1 fw-semibold">{{ product.title }}</p>
+      <p class="text-muted small mb-2">Saved {{ saved_at.strftime('%Y-%m-%d') }}</p>
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="fw-bold">₹{{ '%.2f' % (product.price/100) }}</span>
+        <a class="btn btn-sm btn-outline-primary" href="/shop/products/{{ product.id }}">View</a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><div class="alert alert-info">No items yet.</div></div>
+  {% endfor %}
+</div>
+{% endblock %}

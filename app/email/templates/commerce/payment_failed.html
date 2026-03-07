@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Payment</div>
+  <div class="headline">Payment failed</div>
+  <p class="body-text">Hi {{ user.name }}, we could not process your payment.</p>
+  <div class="card">
+    <div class="body-text">Reason</div>
+    <div class="muted" style="margin-top:4px;">{{ reason or 'The payment was declined by your provider.' }}</div>
+    <div class="muted" style="margin-top:8px;">Transaction ID: {{ transaction_id }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Update payment"} %}
+  <p class="muted">Your order is on hold until payment succeeds. This helps prevent unintended charges.</p>
+{% endblock %}

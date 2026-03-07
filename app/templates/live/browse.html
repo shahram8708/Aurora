@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Live Now{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0">Live Sessions</h5>
+  <a class="btn btn-primary btn-sm d-inline-flex align-items-center" href="{{ url_for('live.create_live_page') }}">
+    <i class="bi bi-broadcast-pin me-1"></i>
+    Go Live
+  </a>
+</div>
+{% if not sessions %}
+  <div class="alert alert-info">No live sessions from you or people you follow right now.</div>
+{% else %}
+  <div class="row g-3">
+    {% for session, host in sessions %}
+      <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-body d-flex flex-column">
+            <a class="d-flex align-items-center mb-2 text-decoration-none text-dark" href="{{ url_for('users.view_profile', user_id=host.id) }}">
+              {% if host.profile_photo_url %}
+                <img class="avatar-img me-2" src="{{ host.profile_photo_url }}" alt="{{ host.username }} profile photo">
+              {% else %}
+                <div class="avatar-placeholder me-2">{{ (host.name or host.username)[0]|upper }}</div>
+              {% endif %}
+              <div>
+                <div class="fw-semibold">{{ host.username }}</div>
+                {% if host.name %}
+                  <div class="text-muted small">{{ host.name }}</div>
+                {% endif %}
+              </div>
+            </a>
+            <div class="fw-semibold">{{ session.title }}</div>
+            <div class="text-muted small mb-2">{{ session.description }}</div>
+            <div class="mt-auto d-flex justify-content-between align-items-center">
+              <span class="badge bg-danger">LIVE</span>
+              <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center" href="{{ url_for('live.view_live', session_id=session.id) }}">
+                <i class="bi bi-play-circle me-1"></i>
+                Join
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+<style>
+  .avatar-placeholder { width:36px; height:36px; border-radius:50%; background:#0d6efd; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; }
+</style>
+{% endblock %}

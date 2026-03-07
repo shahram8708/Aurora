@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Payment</div>
+  <div class="headline">Payment successful</div>
+  <p class="body-text">Hi {{ user.name }}, your payment was processed successfully.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Amount</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Transaction ID</td><td style="text-align:right;" class="body-text">{{ transaction_id }}</td></tr>
+      <tr><td class="muted">Method</td><td style="text-align:right;" class="body-text">{{ method }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View receipt"} %}
+  <p class="muted">If you did not authorize this payment, secure your account and notify support immediately.</p>
+{% endblock %}

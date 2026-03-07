@@ -1,0 +1,191 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}System Status{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="text-dark fw-bold mb-1">System Operations</h2>
+    <p class="text-muted mb-0">Live health checks, metrics, and rate limits wired to the /system endpoints.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-success" id="dbBadge">{{ 'DB OK' if db_status == 'ok' else 'DB Degraded' }}</span>
+    <span class="badge bg-secondary">Realtime fetch</span>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="text-dark mb-0">Live Health Snapshot</h5>
+          <small class="text-muted">Derived from system_health()</small>
+        </div>
+        <span class="badge bg-success" id="healthBadge">OK</span>
+      </div>
+      <div class="row g-3 text-dark">
+        <div class="col-sm-4">
+          <div class="small text-muted">Active users</div>
+          <div class="h4 mb-0" id="healthActive">{{ health.active_users }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="small text-muted">Pending reports</div>
+          <div class="h4 mb-0" id="healthReports">{{ health.pending_reports }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="small text-muted">Live sessions</div>
+          <div class="h4 mb-0" id="healthLive">{{ health.live_sessions }}</div>
+        </div>
+      </div>
+      <div class="text-muted small mt-2">Last updated <span id="healthTimestamp">{{ health.timestamp }}</span></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card stat-card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-dark">Database status</h6>
+        <span class="badge {{ 'bg-success' if db_status == 'ok' else 'bg-warning text-dark' }}" id="dbStatus">{{ db_status|upper }}</span>
+      </div>
+      <div class="text-dark small">Connectivity check: SELECT 1</div>
+      {% if db_error %}
+      <div class="text-danger small mt-2">{{ db_error }}</div>
+      {% else %}
+      <div class="text-muted small mt-2">No errors reported.</div>
+      {% endif %}
+    </div>
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-dark">Rate limits</h6>
+        <span class="badge bg-info">Config</span>
+      </div>
+      <ul class="list-group list-group-flush" id="rateList">
+        <li class="list-group-item d-flex justify-content-between">Default <span class="fw-semibold" id="rateDefault">{{ limits.default }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Admin <span class="fw-semibold" id="rateAdmin">{{ limits.admin }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Auth <span class="fw-semibold" id="rateAuth">{{ limits.auth }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">Search <span class="fw-semibold" id="rateSearch">{{ limits.search }}</span></li>
+        <li class="list-group-item d-flex justify-content-between">AI <span class="fw-semibold" id="rateAi">{{ limits.ai }}</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="card stat-card p-3 mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="text-dark mb-0">Run live checks</h6>
+    <span class="badge bg-primary">Uses /system routes</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Endpoint</th><th>Description</th><th class="text-end">Action</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="fw-semibold">/system/healthz</td>
+          <td class="text-muted small">Returns health snapshot and logs to metrics logger.</td>
+          <td class="text-end"><button class="btn btn-sm btn-success" data-path="/system/healthz" data-kind="health">Ping health</button></td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">/system/metrics</td>
+          <td class="text-muted small">Checks DB connectivity and bundles health stats.</td>
+          <td class="text-end"><button class="btn btn-sm btn-info" data-path="/system/metrics" data-kind="metrics">Pull metrics</button></td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">/system/rate-limit</td>
+          <td class="text-muted small">Shows default and admin rate limit strings.</td>
+          <td class="text-end"><button class="btn btn-sm btn-secondary" data-path="/system/rate-limit" data-kind="rate">Load limits</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="card stat-card p-3 mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="text-dark mb-0">API response viewer</h6>
+    <div class="d-flex gap-2">
+      <small class="text-muted">Latest payload from selected route.</small>
+      <button class="btn btn-sm btn-outline-secondary" id="clearLog">Clear</button>
+    </div>
+  </div>
+  <pre class="bg-dark text-success p-3 rounded" style="min-height: 220px; font-size: 13px;" id="apiResponse">Ready. Pick an action above to hit a real endpoint.</pre>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+const responseBox = document.getElementById('apiResponse');
+const healthBadge = document.getElementById('healthBadge');
+const dbStatus = document.getElementById('dbStatus');
+const healthActive = document.getElementById('healthActive');
+const healthReports = document.getElementById('healthReports');
+const healthLive = document.getElementById('healthLive');
+const healthTimestamp = document.getElementById('healthTimestamp');
+const rateDefault = document.getElementById('rateDefault');
+const rateAdmin = document.getElementById('rateAdmin');
+const rateAuth = document.getElementById('rateAuth');
+const rateSearch = document.getElementById('rateSearch');
+const rateAi = document.getElementById('rateAi');
+const clearLog = document.getElementById('clearLog');
+
+function setBadges(state, labelEl) {
+  const success = state === 'ok' || state === 'healthy';
+  const classes = success ? ['bg-success'] : ['bg-warning', 'text-dark'];
+  labelEl.classList.remove('bg-success', 'bg-warning', 'text-dark');
+  labelEl.classList.add(...classes);
+  labelEl.textContent = (state || 'unknown').toUpperCase();
+}
+
+function updateHealth(stats) {
+  if (!stats) return;
+  healthActive.textContent = stats.active_users ?? healthActive.textContent;
+  healthReports.textContent = stats.pending_reports ?? healthReports.textContent;
+  healthLive.textContent = stats.live_sessions ?? healthLive.textContent;
+  healthTimestamp.textContent = stats.timestamp || new Date().toISOString();
+}
+
+function updateRateLimits(data) {
+  rateDefault.textContent = data.default ?? rateDefault.textContent;
+  rateAdmin.textContent = data.admin ?? rateAdmin.textContent;
+  rateAuth.textContent = data.auth ?? rateAuth.textContent;
+  rateSearch.textContent = data.search ?? rateSearch.textContent;
+  rateAi.textContent = data.ai ?? rateAi.textContent;
+}
+
+async function hitEndpoint(path, kind, button) {
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Loading...';
+  try {
+    const res = await fetch(path, { credentials: 'same-origin' });
+    const data = await res.json();
+    responseBox.textContent = JSON.stringify(data, null, 2);
+    if (kind === 'health') {
+      setBadges(data.status || 'ok', healthBadge);
+      updateHealth(data);
+    }
+    if (kind === 'metrics') {
+      setBadges(data.db || 'ok', dbStatus);
+      updateHealth(data.stats);
+    }
+    if (kind === 'rate') {
+      updateRateLimits(data);
+    }
+  } catch (err) {
+    responseBox.textContent = `Error hitting ${path}: ${err}`;
+    setBadges('degraded', healthBadge);
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+document.querySelectorAll('button[data-path]').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    hitEndpoint(btn.dataset.path, btn.dataset.kind, btn);
+  });
+});
+
+clearLog.addEventListener('click', () => {
+  responseBox.textContent = 'Ready. Pick an action above to hit a real endpoint.';
+});
+
+// Initialize badges with current state from server.
+setBadges('{{ db_status }}', dbStatus);
+setBadges('ok', healthBadge);
+</script>
+{% endblock %}

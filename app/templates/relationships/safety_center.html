@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Safety Center{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+  <div>
+    <h4 class="mb-1">Safety Center</h4>
+    <p class="text-muted mb-0">See who you've blocked, restricted, or muted and undo it anytime.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('users.dashboard') }}"><i class="bi bi-speedometer me-2"></i>Dashboard</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('users.profile') }}"><i class="bi bi-person-circle me-2"></i>My profile</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Blocked</p>
+        <h4 class="mb-2">{{ blocked|length }}</h4>
+        <p class="mb-0 text-muted small">They can't follow, view, or message you.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Restricted</p>
+        <h4 class="mb-2">{{ restricted|length }}</h4>
+        <p class="mb-0 text-muted small">Their DMs land in requests; comments are limited.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Muted</p>
+        <h4 class="mb-2">{{ muted|length }}</h4>
+        <p class="mb-0 text-muted small">You won't see their posts, stories, or reels.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="mb-1">Blocked accounts</h5>
+        <p class="text-muted small mb-0">People fully cut off from you. Unblock to restore follows and messages.</p>
+      </div>
+      <span class="badge text-bg-light">{{ blocked|length }}</span>
+    </div>
+    {% if blocked %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Account</th>
+            <th scope="col">Since</th>
+            <th scope="col" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for block, target in blocked %}
+          <tr>
+            <td>
+              <div class="fw-semibold">@{{ target.username }}</div>
+              <div class="text-muted small">{{ target.name }}</div>
+            </td>
+            <td class="text-muted small">{{ block.created_at.strftime('%b %d, %Y') if block.created_at else '—' }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary me-2" href="{{ url_for('users.view_profile', user_id=target.id) }}">View</a>
+              <form class="d-inline" method="post" action="{{ url_for('users.unblock_user', target_id=target.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-danger" type="submit">Unblock</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-light mb-0">You haven't blocked anyone.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="mb-1">Restricted accounts</h5>
+        <p class="text-muted small mb-0">Their DMs go to requests and interactions stay limited.</p>
+      </div>
+      <span class="badge text-bg-light">{{ restricted|length }}</span>
+    </div>
+    {% if restricted %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Account</th>
+            <th scope="col">Since</th>
+            <th scope="col" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for restriction, target in restricted %}
+          <tr>
+            <td>
+              <div class="fw-semibold">@{{ target.username }}</div>
+              <div class="text-muted small">{{ target.name }}</div>
+            </td>
+            <td class="text-muted small">{{ restriction.created_at.strftime('%b %d, %Y') if restriction.created_at else '—' }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary me-2" href="{{ url_for('users.view_profile', user_id=target.id) }}">View</a>
+              <form class="d-inline" method="post" action="{{ url_for('users.unrestrict_user', target_id=target.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Remove restrict</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-light mb-0">You haven't restricted anyone.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="mb-1">Muted accounts</h5>
+        <p class="text-muted small mb-0">Their posts, reels, and stories stay hidden for you.</p>
+      </div>
+      <span class="badge text-bg-light">{{ muted|length }}</span>
+    </div>
+    {% if muted %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Account</th>
+            <th scope="col">Since</th>
+            <th scope="col" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mute, target in muted %}
+          <tr>
+            <td>
+              <div class="fw-semibold">@{{ target.username }}</div>
+              <div class="text-muted small">{{ target.name }}</div>
+            </td>
+            <td class="text-muted small">{{ mute.created_at.strftime('%b %d, %Y') if mute.created_at else '—' }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary me-2" href="{{ url_for('users.view_profile', user_id=target.id) }}">View</a>
+              <form class="d-inline" method="post" action="{{ url_for('users.unmute_user', target_id=target.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Unmute</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-light mb-0">You haven't muted anyone.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

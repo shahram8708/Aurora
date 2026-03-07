@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Broadcast Hub{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Broadcast Hub</h1>
+    <p class="text-muted mb-0">Spin up channels, schedule announcements, and keep subscribers in the loop from one place.</p>
+  </div>
+  <div class="ms-lg-auto d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('broadcast.broadcast_dashboard') }}">Refresh</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Owned</div>
+        <div class="fs-3 fw-bold">{{ owned_channels|length }}</div>
+        <div class="text-muted small">Channels you manage</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Subscribed</div>
+        <div class="fs-3 fw-bold">{{ subscribed_channels|length }}</div>
+        <div class="text-muted small">Channels you follow</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Total Available</div>
+        <div class="fs-3 fw-bold">{{ all_channels|length }}</div>
+        <div class="text-muted small">Open channels across the network</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h5 mb-0">Create a Channel</h2>
+          <span class="badge text-bg-primary">Owner</span>
+        </div>
+        <form method="post" action="{{ url_for('broadcast.create_channel_form_route') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Channel name</label>
+            <input class="form-control" name="name" placeholder="Product launches, community updates" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea class="form-control" name="description" rows="3" placeholder="Who is this for and what should they expect?"></textarea>
+          </div>
+          <div class="d-grid">
+            <button class="btn btn-primary" type="submit">Create &amp; invite</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h5 mb-0">Your Channels</h2>
+          <small class="text-muted">Direct access to the broadcasts you run</small>
+        </div>
+        {% if owned_channels %}
+        <div class="row g-3">
+          {% for c in owned_channels %}
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex align-items-start justify-content-between mb-2">
+                <div>
+                  <div class="fw-bold">{{ c.channel.name }}</div>
+                  <div class="text-muted small">{{ c.channel.description or 'No description yet' }}</div>
+                </div>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('broadcast.channel_detail_page', channel_id=c.channel.id) }}">Open</a>
+              </div>
+              <div class="d-flex flex-column gap-1 small text-muted">
+                <div><i class="bi bi-people"></i> {{ c.subscriber_count }} subscribers</div>
+                <div><i class="bi bi-calendar3"></i> Started {{ c.channel.created_at.strftime('%b %d, %Y') }}</div>
+                {% set owner = user_map.get(c.channel.created_by) %}
+                <div><i class="bi bi-person-badge"></i> Owner: {% if c.is_owner %}You{% elif owner %}<a class="link-body-emphasis text-decoration-none" href="{{ url_for('users.view_profile', user_id=owner.id) }}">@{{ owner.username }}</a>{% else %}Unknown{% endif %}</div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">You have not created any channels yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Subscribed Channels</h2>
+      <small class="text-muted">Stay current with teams you follow</small>
+    </div>
+    {% if subscribed_channels %}
+    <div class="row g-3">
+      {% for c in subscribed_channels %}
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <div class="fw-semibold">{{ c.channel.name }}</div>
+              <div class="text-muted small">{{ c.channel.description or 'Updates from the channel owner' }}</div>
+            </div>
+            <div class="d-flex gap-2">
+              <form method="post" action="{{ url_for('broadcast.unsubscribe_html', channel_id=c.channel.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Unsubscribe</button>
+              </form>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('broadcast.channel_detail_page', channel_id=c.channel.id) }}">View</a>
+            </div>
+          </div>
+          <div class="d-flex gap-3 small text-muted">
+            <div><i class="bi bi-people"></i> {{ c.subscriber_count }} subscribers</div>
+            <div><i class="bi bi-person-badge"></i> Owner: {% if c.is_owner %}You{% else %}{{ c.channel.created_by }}{% endif %}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">No subscriptions yet. Explore the open channels below.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="h5 mb-0">Explore All Channels</h2>
+        <small class="text-muted">Discover and join channels across the network.</small>
+      </div>
+    </div>
+    {% if all_channels %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Channel</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Subscribers</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in all_channels %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ c.channel.name }}</div>
+              <div class="text-muted small">{{ c.channel.description or 'No description provided' }}</div>
+            </td>
+            <td class="text-muted small">
+              {% if c.is_owner %}
+                You
+              {% else %}
+                {% set owner = user_map.get(c.channel.created_by) %}
+                {% if owner %}
+                  <a class="link-body-emphasis text-decoration-none" href="{{ url_for('users.view_profile', user_id=owner.id) }}">@{{ owner.username }}</a>
+                {% else %}
+                  Unknown
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="text-muted"><i class="bi bi-people"></i> {{ c.subscriber_count }}</td>
+            <td>
+              {% if c.is_owner %}
+              <span class="badge text-bg-primary">Owner</span>
+              {% elif c.is_subscribed %}
+              <span class="badge text-bg-success">Subscribed</span>
+              {% else %}
+              <span class="badge text-bg-secondary">Available</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if c.is_owner %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('broadcast.channel_detail_page', channel_id=c.channel.id) }}">Manage</a>
+              {% elif c.is_subscribed %}
+              <form class="d-inline" method="post" action="{{ url_for('broadcast.unsubscribe_html', channel_id=c.channel.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Unsubscribe</button>
+              </form>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('broadcast.channel_detail_page', channel_id=c.channel.id) }}">View</a>
+              {% else %}
+              <form class="d-inline" method="post" action="{{ url_for('broadcast.subscribe_html', channel_id=c.channel.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-primary" type="submit">Subscribe</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">No channels available yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

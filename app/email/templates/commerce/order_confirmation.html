@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Order</div>
+  <div class="headline">Order confirmed</div>
+  <p class="body-text">Hi {{ user.name }}, thanks for your order. We are getting it ready.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Order ID</td><td style="text-align:right;" class="body-text">{{ order_id }}</td></tr>
+      <tr><td class="muted">Total</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Placed at</td><td style="text-align:right;" class="body-text">{{ timestamp }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View order"} %}
+  <p class="muted">A detailed receipt is available in your account. If you see anything unusual, contact support immediately.</p>
+{% endblock %}

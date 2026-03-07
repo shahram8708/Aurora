@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Security alert</div>
+  <div class="headline">New device sign-in detected</div>
+  <p class="body-text">Hi {{ user.name }}, your account was just accessed from a new device.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Device</td><td style="text-align:right;" class="body-text">{{ device or 'Unknown device' }}</td></tr>
+      <tr><td class="muted">Location</td><td style="text-align:right;" class="body-text">{{ location or 'Unknown location' }}</td></tr>
+      <tr><td class="muted">Time</td><td style="text-align:right;" class="body-text">{{ timestamp }}</td></tr>
+      <tr><td class="muted">IP</td><td style="text-align:right;" class="body-text">{{ ip or 'Not captured' }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": secure_url, "label": "Review sessions"} %}
+  <p class="body-text">If this was not you, immediately secure your account and change your password. This link lets you revoke other sessions and enable stronger authentication.</p>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Seller Dashboard{% endblock %}
+{% block content %}
+<h4 class="mb-3">Seller dashboard</h4>
+
+<div class="row g-3">
+  <div class="col-md-3"><div class="p-3 bg-white rounded shadow-sm">Total sales<br><strong>{{ total_sales }}</strong></div></div>
+  <div class="col-md-3"><div class="p-3 bg-white rounded shadow-sm">Revenue<br><strong>₹{{ '%.2f' % (total_revenue/100) }}</strong></div></div>
+  <div class="col-md-3"><div class="p-3 bg-white rounded shadow-sm">Pending orders<br><strong>{{ pending_orders }}</strong></div></div>
+  <div class="col-md-3"><div class="p-3 bg-white rounded shadow-sm">Completed<br><strong>{{ completed_orders }}</strong></div></div>
+</div>
+
+<div class="row mt-4 g-3">
+  <div class="col-lg-8">
+    <div class="bg-white rounded shadow-sm p-3">
+      <h6>Revenue chart</h6>
+      <canvas id="revenueChart" height="120"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="bg-white rounded shadow-sm p-3">
+      <h6>Top products</h6>
+      <ul class="list-group list-group-flush">
+        {% for pid, title, qty in top_products %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a href="{{ url_for('shop.product_detail', product_id=pid) }}" class="text-decoration-none">{{ title }}</a>
+          <span class="badge bg-primary">{{ qty }}</span>
+        </li>
+        {% else %}
+        <li class="list-group-item">No sales yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="bg-white rounded shadow-sm p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Fulfill orders</h6>
+        <small class="text-muted">Mark shipped/delivered and add tracking</small>
+      </div>
+      {% if seller_orders %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Order</th><th>Items</th><th>Status</th><th>Tracking</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in seller_orders %}
+            {% set track = tracking_map.get(order.id) %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ order.id }}</div>
+                <small class="text-muted">Placed {{ order.created_at.strftime('%Y-%m-%d') }}</small>
+              </td>
+              <td>
+                <ul class="mb-0 ps-3">
+                  {% for item in order.items %}
+                    {% if item.seller_id == g.current_user.id %}
+                      <li>{{ item.product.title if item.product else 'Item' }} × {{ item.quantity }}</li>
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </td>
+              <td>{{ order.status }}</td>
+              <td>
+                <div class="small text-muted">{{ track.carrier if track else 'Not set' }}</div>
+                <div class="small">{{ track.tracking_number if track else '' }}</div>
+                <div class="small">{{ track.status if track else 'pending' }}</div>
+                <div class="small text-muted mt-1">
+                  Ship to: {{ order.shipping_address_json.name }}, {{ order.shipping_address_json.line1 }}, {{ order.shipping_address_json.city }} {{ order.shipping_address_json.zip }} ({{ order.shipping_address_json.phone }})
+                </div>
+              </td>
+              <td style="min-width:220px;">
+                {% if order.status == 'delivered' %}
+                  <span class="badge bg-success">Delivered</span>
+                  <div class="small text-muted">Updated {{ track.updated_at.strftime('%Y-%m-%d') if track and track.updated_at else '' }}</div>
+                {% else %}
+                  <form class="row g-2" action="/orders/{{ order.id }}/shipment" method="post">
+                    <div class="col-12 col-md-6">
+                      <input name="carrier" class="form-control form-control-sm" placeholder="Carrier" value="{{ track.carrier if track else '' }}">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <input name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" value="{{ track.tracking_number if track else '' }}">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <select name="status" class="form-select form-select-sm">
+                        {% for opt in ['processing','shipped','delivered'] %}
+                          <option value="{{ opt }}" {% if (track.status if track else 'processing') == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-12 col-md-6 d-grid">
+                      <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                    </div>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info mb-0">No orders to fulfill yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const ctx=document.getElementById('revenueChart');
+  const data={labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets:[{label:'Revenue', data:[12,19,3,5,2,3,7], backgroundColor:'rgba(13,110,253,0.2)', borderColor:'#0d6efd'}]};
+  new Chart(ctx,{type:'line',data:data,options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+</script>
+{% endblock %}

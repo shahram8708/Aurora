@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Reels{% endblock %}
+{% block content %}
+<script>document.body.classList.add('page-reels');</script>
+<div class="reels-shell">
+  <div class="reels-background"></div>
+  <div id="reel-viewport" class="reel-viewport" data-cursor="{{ reels|length }}" data-limit="8">
+    {% for reel in reels %}
+      {% include 'reels/_card.html' %}
+    {% endfor %}
+  </div>
+  {% if reels|length == 0 %}
+    <div class="reel-empty">No reels yet.</div>
+  {% endif %}
+  <div id="reel-loader" class="reel-loader">Loading…</div>
+</div>
+
+<div class="modal fade" id="reelCommentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header border-secondary">
+        <h6 class="modal-title">Comments</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="reel-comments" aria-live="polite"></div>
+      <div class="modal-footer border-secondary">
+        <input type="text" class="form-control bg-dark text-white" id="reel-comment-input" placeholder="Add a comment" aria-label="Add a comment">
+        <button class="btn btn-primary" id="reel-comment-submit" data-reel-id="">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="reelLikesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header border-secondary">
+        <h6 class="modal-title">Likes</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="reel-likes-list" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

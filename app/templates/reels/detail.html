@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Reel{% endblock %}
+{% block content %}
+<div class="reel-detail card shadow-sm">
+  <div class="reel-card" data-reel-id="{{ reel.id }}">
+    <video class="w-100" controls playsinline>
+      <source src="{{ reel.video_url }}" type="video/mp4">
+    </video>
+    <div class="p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <div class="fw-bold">{{ reel.user.username if reel.user else '' }}</div>
+          <small class="text-muted">{{ reel.caption }}</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-light btn-sm reel-like" data-reel-id="{{ reel.id }}">❤️</button>
+          <button class="btn btn-outline-light btn-sm reel-share" data-reel-id="{{ reel.id }}">📤</button>
+        </div>
+      </div>
+      {% if reel.voiceover_url %}
+        <p class="small text-info mb-1">Voiceover attached (mix {{ reel.mix_ratio or 0.5 }})</p>
+      {% endif %}
+      {% if reel.green_screen_background_url %}
+        <p class="small text-warning mb-0">Green screen background prepared</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

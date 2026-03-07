@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Direct message</div>
+  <div class="headline">You have a new message</div>
+  <p class="body-text">Hi {{ user.name }}, {{ actor or 'someone' }} sent you a new message. Reply quickly to keep the conversation moving.</p>
+  <div class="card">
+    <div class="body-text">Conversation</div>
+    <div class="muted" style="margin-top:4px;">{{ meta.preview or 'Open to read the full message.' }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Open messages"} %}
+  <p class="muted">If you do not want these emails, manage preferences in Settings → Notifications.</p>
+{% endblock %}

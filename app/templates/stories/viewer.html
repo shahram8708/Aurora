@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Story{% endblock %}
+{% block content %}
+<div class="story-viewer">
+  <div class="story-frame">
+    {% if story.story_type == 'text' %}
+      <div class="story-text p-4">{{ story.text_content }}</div>
+    {% elif story.story_type == 'photo' %}
+      <img src="{{ story.media_url }}" class="img-fluid w-100" alt="story">
+    {% else %}
+      <video class="w-100" controls autoplay muted playsinline>
+        <source src="{{ story.media_url }}" type="video/mp4">
+      </video>
+    {% endif %}
+    <div class="story-overlay">
+      <div class="d-flex justify-content-between align-items-center w-100">
+        <a class="fw-bold text-white text-decoration-none" href="{{ url_for('users.view_profile', user_id=story.user_id) if story.user_id else '#' }}">{{ story.user.username if story.user else '' }}</a>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-light btn-sm" id="story-like" data-story-id="{{ story.id }}" aria-label="Like story"><i class="bi bi-heart"></i></button>
+          <button class="btn btn-outline-light btn-sm" id="story-reply" data-story-id="{{ story.id }}"><i class="bi bi-chat-dots-fill me-1"></i>Reply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-3 container" style="max-width: 640px;">
+  <div class="d-flex align-items-center gap-2">
+    <span id="story-like-count">{{ story.likes|length }}</span> likes •
+    <span id="story-view-count">{{ story.views|length }}</span> views
+  </div>
+  <div class="mt-2 small">
+    <strong>Liked by:</strong>
+    <span id="story-liked-list">
+    {% if story.likes %}
+      {% for l in story.likes %}
+        <a class="text-decoration-none" href="{{ url_for('users.view_profile', user_id=l.user_id) if l.user_id else '#' }}">{{ l.user.username if l.user else 'user' }}</a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    {% else %}
+      <span class="text-muted">No likes yet.</span>
+    {% endif %}
+    </span>
+  </div>
+  <form id="story-reply-form" class="d-flex gap-2" data-story-id="{{ story.id }}">
+    <input class="form-control" type="text" name="content" placeholder="Reply..." required maxlength="500">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-send-fill me-1"></i>Send</button>
+  </form>
+  <div class="mt-3" id="story-replies">
+    {% for r in story.replies|sort(attribute='created_at', reverse=True) %}
+      <div class="mb-2">
+        <a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=r.user_id) if r.user_id else '#' }}">{{ r.user.username if r.user else 'user' }}</a>: {{ r.content }}
+      </div>
+    {% else %}
+      <div class="text-muted">No replies yet.</div>
+    {% endfor %}
+  </div>
+  {% if is_owner %}
+  <div class="mt-3">
+    <h6>Views</h6>
+    {% if story.views %}
+      {% for v in story.views|sort(attribute='created_at', reverse=True) %}
+        <div class="mb-1">
+          <a class="text-decoration-none" href="{{ url_for('users.view_profile', user_id=v.viewer_id) if v.viewer_id else '#' }}">{{ v.user.username if v.user else 'user' }}</a>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-muted">No viewers yet.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+  (function() {
+    const form = document.getElementById('story-reply-form');
+    if (!form) return;
+    const list = document.getElementById('story-replies');
+    const likeBtn = document.getElementById('story-like');
+    const likeCountEl = document.getElementById('story-like-count');
+    console.debug('[story-viewer] init', {hasLikeBtn: !!likeBtn});
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const content = form.content.value.trim();
+      if (!content) return;
+      const resp = await fetch('{{ url_for('stories.reply', story_id=story.id) }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({ content }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        alert(data.error || 'Unable to send reply');
+        return;
+      }
+      const item = document.createElement('div');
+      item.className = 'mb-2';
+      const username = data.user?.username || 'you';
+      const userId = data.user?.id;
+      const anchor = document.createElement('a');
+      anchor.className = 'fw-semibold text-decoration-none';
+      anchor.textContent = username;
+      anchor.href = userId ? `/users/${userId}` : '#';
+      item.appendChild(anchor);
+      item.appendChild(document.createTextNode(`: ${data.content}`));
+      list.prepend(item);
+      form.reset();
+    });
+
+    if (likeBtn) {
+      likeBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.debug('[story-like/page] click', {storyId: likeBtn.dataset.storyId || '{{ story.id }}'});
+        const resp = await fetch('{{ url_for('stories.like_story', story_id=story.id) }}', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+          },
+        });
+        console.debug('[story-like/page] status', resp.status);
+        const data = await resp.json();
+        console.debug('[story-like/page] body', data);
+        if (!resp.ok) {
+          alert(data.error || 'Unable to like story');
+          return;
+        }
+        likeCountEl.textContent = data.like_count;
+        likeBtn.classList.toggle('btn-primary', data.liked);
+      });
+    }
+  }());
+</script>
+{% endblock %}

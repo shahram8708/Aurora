@@ -1,0 +1,130 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Revenue Ops</p>
+    <h2 class="fw-bold text-dark mb-0">Payments Console</h2>
+    <p class="text-muted mb-0">Track captures, refunds, and suspicious attempts.</p>
+  </div>
+  <form class="d-flex gap-2" method="get">
+    <select class="form-select form-select-sm" name="status">
+      <option value="" {% if not status %}selected{% endif %}>All status</option>
+      <option value="captured" {% if status=='captured' %}selected{% endif %}>Captured</option>
+      <option value="pending" {% if status=='pending' %}selected{% endif %}>Pending</option>
+      <option value="failed" {% if status=='failed' %}selected{% endif %}>Failed</option>
+      <option value="refunded" {% if status=='refunded' %}selected{% endif %}>Refunded</option>
+    </select>
+    <input class="form-control form-control-sm" name="type" placeholder="Purpose (e.g. order)" value="{{ ptype }}">
+    <input type="hidden" name="format" value="html">
+    <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+  </form>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Payments</small>
+      <div class="h4 mb-0">{{ payments|length }}</div>
+      <div class="text-muted small">Last 100 rows</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Refund logs</small>
+      <div class="h4 mb-0">{{ refunds|length }}</div>
+      <div class="text-muted small">Last 50 refunded payments</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Suspicious</small>
+      <div class="h4 mb-0">{{ suspicious|length }}</div>
+      <div class="text-muted small">High value or failed attempts</div>
+    </div>
+  </div>
+</div>
+<div class="card stat-card p-3 mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0 text-dark">Recent Payments</h5>
+    <span class="badge bg-secondary">/payments</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle mb-0">
+      <thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Purpose</th><th>Status</th><th>Reason</th><th>Created</th></tr></thead>
+      <tbody>
+        {% if payments %}
+          {% for p in payments %}
+          <tr>
+            <td class="text-truncate" style="max-width:140px">{{ p.id }}</td>
+            <td>{{ p.user_id or '-' }}</td>
+            <td>₹{{ p.amount }}</td>
+            <td>{{ p.purpose }}</td>
+            <td><span class="badge bg-{{ 'success' if p.status=='captured' else 'warning' if p.status=='pending' else 'secondary' }}">{{ p.status }}</span></td>
+            <td class="text-muted small">{{ p.failure_reason or '' }}</td>
+            <td class="text-muted small">{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="7" class="text-center text-muted">No payments found</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-dark">Refunded</h6>
+        <span class="badge bg-info">/payments/refunds</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>ID</th><th>Amount</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% if refunds %}
+              {% for r in refunds %}
+              <tr>
+                <td class="text-truncate" style="max-width:160px">{{ r.id }}</td>
+                <td>₹{{ r.amount }}</td>
+                <td class="text-muted small">{{ r.failure_reason or '' }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="3" class="text-center text-muted">No refunds logged</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-dark">Suspicious Payments</h6>
+        <span class="badge bg-danger">/payments/suspicious</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Status</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% if suspicious %}
+              {% for s in suspicious %}
+              <tr>
+                <td class="text-truncate" style="max-width:160px">{{ s.id }}</td>
+                <td>{{ s.user_id or '-' }}</td>
+                <td>₹{{ s.amount }}</td>
+                <td><span class="badge bg-warning text-dark">{{ s.status }}</span></td>
+                <td class="text-muted small">{{ s.failure_reason or '' }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5" class="text-center text-muted">No suspicious activity</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

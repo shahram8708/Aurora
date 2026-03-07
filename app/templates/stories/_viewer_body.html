@@ -1,0 +1,137 @@
+<div class="story-frame">
+  {% if story.story_type == 'text' %}
+    <div class="story-text p-4">{{ story.text_content }}</div>
+  {% elif story.story_type == 'photo' %}
+    <img src="{{ story.media_url }}" class="img-fluid w-100" alt="story">
+  {% else %}
+    <video class="w-100" autoplay muted playsinline controls>
+      <source src="{{ story.media_url }}" type="video/mp4">
+    </video>
+  {% endif %}
+  <div class="story-overlay">
+    <div class="d-flex justify-content-between align-items-center w-100">
+      <a class="fw-bold text-white text-decoration-none" href="{{ url_for('users.view_profile', user_id=story.user_id) if story.user_id else '#' }}">{{ story.user.username if story.user else '' }}</a>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-light btn-sm" id="story-like" data-role="story-like" type="button" data-story-id="{{ story.id }}" aria-label="Like story"><i class="bi bi-heart"></i></button>
+        <button class="btn btn-outline-light btn-sm" id="story-reply" data-role="story-reply" type="button" data-story-id="{{ story.id }}"><i class="bi bi-chat-dots-fill me-1"></i>Reply</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-2">
+  <form id="story-reply-form" data-role="story-reply-form" class="d-flex gap-2" data-story-id="{{ story.id }}">
+    <input class="form-control form-control-sm" type="text" name="content" placeholder="Reply..." required maxlength="500">
+    <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send-fill me-1"></i>Send</button>
+  </form>
+  <div class="small mb-2">
+    <div class="d-flex align-items-center gap-2">
+      <span id="story-like-count" data-role="story-like-count">{{ story.likes|length }}</span> likes
+      •
+      <span id="story-view-count" data-role="story-view-count">{{ story.views|length }}</span> views
+    </div>
+    <div class=" mt-1">
+      <span class="text-muted">Liked by:</span>
+      {% if story.likes %}
+        <span id="story-liked-list" data-role="story-liked-list">
+          {% for l in story.likes %}
+            <a class="text-decoration-none" href="{{ url_for('users.view_profile', user_id=l.user_id) if l.user_id else '#' }}">{{ l.user.username if l.user else 'user' }}</a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </span>
+      {% else %}
+        <span class="text-muted">No likes yet.</span>
+      {% endif %}
+    </div>
+    {% if is_owner %}
+    <div class=" mt-1">
+      <span class="text-muted">Viewed by:</span>
+      {% if story.views %}
+        {% for v in story.views|sort(attribute='created_at', reverse=True) %}
+          <a class="text-decoration-none" href="{{ url_for('users.view_profile', user_id=v.viewer_id) if v.viewer_id else '#' }}">{{ v.user.username if v.user else 'user' }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      {% else %}
+        <span class="text-muted">No viewers yet.</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="mt-2 small " id="story-replies" data-role="story-replies">
+    {% for r in story.replies|sort(attribute='created_at', reverse=True) %}
+      <div class="mb-1">
+        <a class=" fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=r.user_id) if r.user_id else '#' }}">{{ r.user.username if r.user else 'user' }}</a>: {{ r.content }}
+      </div>
+    {% else %}
+      <div class="text-muted">No replies yet.</div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  (function() {
+    const root = document.currentScript?.parentElement || document;
+    const likeBtn = root.querySelector('[data-role="story-like"]');
+    const likeCountEl = root.querySelector('[data-role="story-like-count"]');
+    const replyForm = root.querySelector('[data-role="story-reply-form"]');
+    const repliesList = root.querySelector('[data-role="story-replies"]');
+    const storyId = likeBtn?.dataset?.storyId || replyForm?.dataset?.storyId;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const csrfHeaders = csrf ? {'X-CSRFToken': csrf, 'X-CSRF-Token': csrf} : {};
+
+    if (likeBtn && storyId && !likeBtn.dataset.boundLike) {
+      likeBtn.dataset.boundLike = '1';
+      likeBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.debug('[story-like] click', {storyId});
+        try {
+          const resp = await fetch(`/stories/${storyId}/like`, {
+            method: 'POST',
+            headers: csrfHeaders,
+            credentials: 'same-origin',
+          });
+          console.debug('[story-like] response status', resp.status);
+          const data = await resp.json();
+          console.debug('[story-like] response body', data);
+          if (!resp.ok) throw new Error(data.error || 'Unable to like');
+          if (likeCountEl && typeof data.like_count === 'number') likeCountEl.textContent = data.like_count;
+          likeBtn.classList.toggle('btn-primary', data.liked);
+        } catch (err) {
+          console.error('like error', err);
+          alert(err.message || 'Unable to like');
+        }
+      });
+    }
+
+    if (replyForm && repliesList && storyId && !replyForm.dataset.boundReply) {
+      replyForm.dataset.boundReply = '1';
+      replyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const content = replyForm.content.value.trim();
+        if (!content) return;
+        try {
+          const resp = await fetch(`/stories/${storyId}/reply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...csrfHeaders,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({content}),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Unable to reply');
+          const div = document.createElement('div');
+          div.className = 'mb-1';
+          const a = document.createElement('a');
+          a.className = 'fw-semibold text-decoration-none';
+          a.textContent = data.user?.username || 'you';
+          a.href = data.user?.id ? `/users/${data.user.id}` : '#';
+          div.appendChild(a);
+          div.appendChild(document.createTextNode(`: ${data.content}`));
+          repliesList.prepend(div);
+          replyForm.reset();
+        } catch (err) {
+          console.error('reply error', err);
+          alert(err.message || 'Unable to reply');
+        }
+      });
+    }
+  }());
+</script>

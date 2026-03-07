@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">New comment</div>
+  <div class="headline">{{ actor or 'Someone' }} commented on your post</div>
+  <p class="body-text">Hi {{ user.name }}, you received a new comment. Jump in to reply while the conversation is fresh.</p>
+  <div class="card">
+    <div class="body-text">Comment preview</div>
+    <div class="muted" style="margin-top:4px;">{{ meta.comment_preview or 'Open the app to view the full thread.' }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Reply now"} %}
+  <p class="muted">Reference: {{ reference_id or 'N/A' }} · {{ timestamp }}</p>
+{% endblock %}

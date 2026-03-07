@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Ad Payment{% endblock %}
+{% block content %}
+<div class="py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="bg-white shadow-sm rounded p-4 text-center">
+        {% if status in ['success','paid'] %}
+          <div class="text-success fs-1 mb-2">&#10003;</div>
+          <h4 class="mb-2">Payment submitted</h4>
+          <p class="text-muted mb-3">Your campaign payment is recorded. If not auto-confirmed, it will update shortly.</p>
+          <a class="btn btn-primary" href="{{ url_for('business.analytics_dashboard') }}#ads">Back to Ad Campaigns</a>
+        {% else %}
+          <div class="text-danger fs-1 mb-2">&#10007;</div>
+          <h4 class="mb-2">Payment not completed</h4>
+          <p class="text-muted mb-3">{{ message or 'We could not confirm your payment.' }}</p>
+          <a class="btn btn-outline-primary" href="{{ url_for('business.analytics_dashboard') }}#ads">Try again</a>
+        {% endif %}
+        {% if order_id %}<div class="small text-muted mt-3">Order: {{ order_id }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Purchase confirmation</div>
+  <div class="headline">Thanks for supporting with a live badge</div>
+  <p class="body-text">Hi {{ user.name }}, your purchase was successful. The creator has received your badge.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Badge</td><td style="text-align:right;" class="body-text">{{ badge_name or 'Live badge' }}</td></tr>
+      <tr><td class="muted">Amount</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Transaction ID</td><td style="text-align:right;" class="body-text">{{ transaction_id }}</td></tr>
+      <tr><td class="muted">Time</td><td style="text-align:right;" class="body-text">{{ timestamp }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View receipt"} %}
+  <p class="muted">Need help? <a href="{{ support_url }}" style="color:{{ primary_color }};text-decoration:none;">Contact support</a>.</p>
+{% endblock %}

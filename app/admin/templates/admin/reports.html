@@ -1,0 +1,243 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Trust & Moderation</p>
+    <h2 class="fw-bold text-dark mb-0">Reports & Copyright</h2>
+    <p class="text-muted mb-0">Review escalations and trigger copyright takedowns.</p>
+  </div>
+  <a class="btn btn-outline-primary btn-sm" href="/admin/reports?format=html">Refresh</a>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 text-dark">General Reports</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <select class="form-select form-select-sm" id="reportType">
+            <option value="content">Content</option>
+            <option value="user">User</option>
+            <option value="copyright">Copyright</option>
+          </select>
+          <select class="form-select form-select-sm" id="reportStatus">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="loadReports">Load</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0" id="reportTable">
+          <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Assigned</th><th>Notes</th></tr></thead>
+          <tbody><tr><td colspan="5" class="text-center text-muted">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-dark">Submit Copyright</h6>
+        <span class="badge bg-secondary">/copyright/submit</span>
+      </div>
+      <form id="copyrightForm" class="row g-2">
+        <div class="col-12">
+          <label class="form-label small">Content ID</label>
+          <input class="form-control" name="content_id" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small">Reporter ID</label>
+          <input class="form-control" name="reporter_id" placeholder="optional">
+        </div>
+        <div class="col-12">
+          <label class="form-label small">Proof URL</label>
+          <input class="form-control" name="proof_url" placeholder="link to proof">
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-outline-primary" type="submit">Submit report</button>
+        </div>
+      </form>
+      <div id="copyrightStatus" class="text-muted small mt-2"></div>
+    </div>
+  </div>
+</div>
+<div class="card stat-card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="mb-0 text-dark">Copyright Queue</h5>
+      <small class="text-muted">Resolve, takedown, and escalate strikes.</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <select class="form-select form-select-sm" id="copyrightStatusFilter">
+        <option value="">All</option>
+        <option value="pending">Pending</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <button class="btn btn-primary btn-sm" id="loadCopyright">Load</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle mb-0" id="copyrightTable">
+      <thead><tr><th>ID</th><th>Content</th><th>Status</th><th>Proof</th><th>Strikes</th><th class="text-end">Actions</th></tr></thead>
+      <tbody><tr><td colspan="6" class="text-center text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const initialReports = {{ reports|tojson }};
+  const initialReportType = {{ report_type|tojson }};
+  const initialStatus = {{ status|tojson }};
+  const initialCopyright = {{ copyright_reports|tojson }};
+
+  const reportType = document.getElementById('reportType');
+  const reportStatus = document.getElementById('reportStatus');
+  const reportTable = document.querySelector('#reportTable tbody');
+  const loadReportsBtn = document.getElementById('loadReports');
+
+  const copyrightStatusFilter = document.getElementById('copyrightStatusFilter');
+  const copyrightTable = document.querySelector('#copyrightTable tbody');
+  const loadCopyrightBtn = document.getElementById('loadCopyright');
+  const copyrightForm = document.getElementById('copyrightForm');
+  const copyrightStatusBox = document.getElementById('copyrightStatus');
+
+  const renderReports = (rows) => {
+    reportTable.innerHTML = '';
+    if (!rows || !rows.length) {
+      reportTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No reports</td></tr>';
+      return;
+    }
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="text-truncate" style="max-width:160px">${r.id}</td>
+        <td>${r.content_type || r.report_type || reportType.value}</td>
+        <td>${r.status}</td>
+        <td>${r.assigned_to || '-'}</td>
+        <td class="text-muted small">${r.notes || ''}</td>`;
+      reportTable.appendChild(tr);
+    });
+  };
+
+  const renderCopyright = (rows) => {
+    copyrightTable.innerHTML = '';
+    if (!rows || !rows.length) {
+      copyrightTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No copyright reports</td></tr>';
+      return;
+    }
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="text-truncate" style="max-width:160px">${r.id}</td>
+        <td>${r.content_id || '-'}</td>
+        <td><span class="badge bg-${r.status === 'resolved' ? 'success' : 'warning'}">${r.status}</span></td>
+        <td class="text-muted small">${r.proof_url || ''}</td>
+        <td>${r.strikes ?? 0}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-success" data-action="resolve" data-id="${r.id}">Resolve</button>
+            <button class="btn btn-outline-danger" data-action="strike" data-id="${r.id}">Strike</button>
+          </div>
+        </td>`;
+      copyrightTable.appendChild(tr);
+    });
+  };
+
+  async function fetchReports(){
+    const t = reportType.value;
+    const s = reportStatus.value;
+    const res = await fetch(`/admin/reports?type=${encodeURIComponent(t)}&status=${encodeURIComponent(s)}`);
+    const data = await res.json();
+    renderReports(data);
+  }
+
+  async function fetchCopyright(){
+    const s = copyrightStatusFilter.value;
+    const res = await fetch(`/admin/reports/copyright?status=${encodeURIComponent(s)}`);
+    const data = await res.json();
+    renderCopyright(data);
+  }
+
+  async function resolveCopyright(id){
+    const notes = prompt('Resolution notes (optional):', '') || null;
+    const takedown = confirm('Also request takedown of the content?');
+    const strikeUser = prompt('Strike user id (optional):', '') || '';
+    const payload = {notes, takedown, strike_user_id: strikeUser || undefined};
+    const resp = await fetch(`/admin/copyright/${id}/resolve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error('Resolve failed');
+    await fetchCopyright();
+  }
+
+  async function strikeCopyright(id){
+    const resp = await fetch(`/admin/copyright/${id}/strike`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken},
+      credentials: 'same-origin',
+    });
+    if (!resp.ok) throw new Error('Strike failed');
+    await fetchCopyright();
+  }
+
+  loadReportsBtn.addEventListener('click', fetchReports);
+  loadCopyrightBtn.addEventListener('click', fetchCopyright);
+
+  copyrightTable.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    (action === 'resolve' ? resolveCopyright(id) : strikeCopyright(id)).catch((err) => alert(err.message));
+  });
+
+  copyrightForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const payload = {
+      content_id: form.content_id.value,
+      reporter_id: form.reporter_id.value || null,
+      proof_url: form.proof_url.value || null,
+    };
+    const resp = await fetch('/admin/copyright/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      copyrightStatusBox.textContent = 'Failed to submit report';
+      copyrightStatusBox.classList.add('text-danger');
+      return;
+    }
+    const data = await resp.json();
+    copyrightStatusBox.textContent = `Submitted report ${data.id}`;
+    copyrightStatusBox.classList.remove('text-danger');
+    form.reset();
+    fetchCopyright();
+  });
+
+  reportType.value = initialReportType || 'content';
+  reportStatus.value = initialStatus || '';
+  copyrightStatusFilter.value = {{ copyright_status|tojson }} || '';
+
+  renderReports(initialReports || []);
+  renderCopyright(initialCopyright || []);
+})();
+</script>
+{% endblock %}

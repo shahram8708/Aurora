@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Performance</div>
+  <div class="headline">Creator performance report</div>
+  <p class="body-text">Hi {{ user.name }}, here are your key performance indicators.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Views</td><td style="text-align:right;" class="body-text">{{ metrics.views }}</td></tr>
+      <tr><td class="muted">Engagement rate</td><td style="text-align:right;" class="body-text">{{ metrics.engagement_rate }}%</td></tr>
+      <tr><td class="muted">Revenue</td><td style="text-align:right;" class="body-text">{{ metrics.revenue }}</td></tr>
+      <tr><td class="muted">Top post</td><td style="text-align:right;" class="body-text">{{ metrics.top_post }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View full report"} %}
+  <p class="muted">We run anomaly detection to protect you from invalid traffic. Review your dashboard for deeper insights.</p>
+{% endblock %}

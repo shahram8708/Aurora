@@ -1,0 +1,274 @@
+{% for post in posts %}
+  <div class="card mb-4 shadow-sm post-card" data-post-id="{{ post.id }}">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-secondary">{{ post.user.username }}</span>
+        {% if post.is_promoted %}
+          <span class="badge bg-warning text-dark">Promoted</span>
+        {% endif %}
+        {% if post.location %}
+          <small class="text-muted">
+            <a class="text-decoration-none" href="{{ url_for('explore.explore_search') }}?q={{ post.location.name }}">{{ post.location.name }}</a>
+          </small>
+        {% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        {% if post.is_pinned %}<span class="text-warning small">Pinned</span>{% endif %}
+        {% if current_user and current_user.is_authenticated and (current_user.id|string) == (post.user_id|string) %}
+          <div class="btn-group btn-group-sm d-flex gap-1" role="group">
+            <form class="m-0" method="post" action="{{ url_for('posts.pin', post_id=post.id) }}" aria-label="{{ 'Unpin' if post.is_pinned else 'Pin' }} post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-warning d-flex align-items-center gap-1" type="submit">
+                <i class="bi {{ 'bi-pin-angle-fill' if post.is_pinned else 'bi-pin-angle' }}"></i>
+                <span class="d-none d-md-inline">{{ 'Unpin' if post.is_pinned else 'Pin' }}</span>
+              </button>
+            </form>
+            <form class="m-0" method="post" action="{{ url_for('posts.archive_post', post_id=post.id) }}" aria-label="{{ 'Restore from archive' if post.is_archived else 'Archive' }} post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-secondary d-flex align-items-center gap-1" type="submit">
+                <i class="bi {{ 'bi-archive-fill' if post.is_archived else 'bi-archive' }}"></i>
+                <span class="d-none d-md-inline">{{ 'Restore' if post.is_archived else 'Archive' }}</span>
+              </button>
+            </form>
+            <a class="btn btn-outline-light d-flex align-items-center gap-1" href="{{ url_for('posts.edit', post_id=post.id) }}">
+              <i class="bi bi-pencil-square"></i>
+              <span class="d-none d-md-inline">Edit</span>
+            </a>
+            <form class="m-0" method="post" action="{{ url_for('posts.delete_post_route', post_id=post.id) }}" onsubmit="return confirm('Delete this post?');" aria-label="Delete post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline-danger d-flex align-items-center gap-1" type="submit">
+                <i class="bi bi-trash"></i>
+                <span class="d-none d-md-inline">Delete</span>
+              </button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% if post.media|length > 0 %}
+      <div id="carousel-{{ post.id }}" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-inner">
+          {% for media in post.media %}
+            <div class="carousel-item {% if loop.first %}active{% endif %}">
+              {% if media.media_type == 'image' %}
+                <img src="{{ media.media_url }}" class="d-block w-100" loading="lazy" alt="{{ media.alt_text or 'post image' }}">
+              {% else %}
+                <video class="w-100" controls preload="metadata">
+                  <source src="{{ media.media_url }}" type="video/mp4">
+                </video>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% if post.media|length > 1 %}
+          <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ post.id }}" data-bs-slide="prev" aria-label="Previous media">
+            <span class="carousel-control-prev-icon"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ post.id }}" data-bs-slide="next" aria-label="Next media">
+            <span class="carousel-control-next-icon"></span>
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <button class="btn btn-sm btn-outline-light like-btn" data-post-id="{{ post.id }}">❤️</button>
+        <button class="btn btn-sm btn-outline-light save-btn" data-post-id="{{ post.id }}">💾</button>
+        <button class="btn btn-sm btn-outline-light comment-btn" data-post-id="{{ post.id }}">💬</button>
+        <button class="btn btn-sm btn-outline-light share-story" data-post-id="{{ post.id }}">📲</button>
+        <button class="btn btn-sm btn-outline-light share-dm" data-post-id="{{ post.id }}">📨</button>
+        {% set share_url = url_for('sharing.view_public', post_id=post.id, _external=True) if post.id else '' %}
+        <a class="btn btn-sm btn-outline-light" href="{{ url_for('posts.view_post', post_id=post.id) }}" aria-label="Open post">
+          <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+        <button class="btn btn-sm btn-outline-light share-btn" data-url="{{ share_url }}" aria-label="Copy share link">
+          <svg aria-hidden="true" viewBox="0 0 16 16" role="img" focusable="false" style="width:14px;height:14px;">
+            <path d="M11 2.5a.5.5 0 0 0-1 0v4.793L4.854 2.146a.5.5 0 1 0-.708.708L9.293 8H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 .5-.5v-7z"/>
+          </svg>
+        </button>
+      </div>
+      {% if not post.hide_like_count %}
+        <p class="mb-1">
+          <a class="text-decoration-none like-count-link" href="#" data-post-id="{{ post.id }}">
+            <strong class="like-count" data-post-id="{{ post.id }}">{{ post.likes|length }}</strong> likes
+          </a>
+        </p>
+      {% endif %}
+      <p class="mb-1"><a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=post.user_id) }}">{{ post.user.username }}</a> {{ post.caption }}</p>
+      {% if post.is_promoted %}
+        <p class="text-warning small mb-1">Sponsored · Ad</p>
+      {% elif post.branded_content_tag %}
+        <p class="text-warning small mb-1">Paid partnership with {{ post.branded_content_tag }}</p>
+      {% endif %}
+      <div class="hashtags mb-2">
+        {% for tag in post.hashtags %}
+          <a class="text-info me-1" href="{{ url_for('explore.explore_search') }}?q=%23{{ tag.name }}">#{{ tag.name }}</a>
+        {% endfor %}
+      </div>
+      <small class="text-muted">{{ post.created_at.strftime('%b %d, %Y %H:%M') }}</small>
+
+      {% set top_comments_sorted = post.comments|selectattr('parent_comment_id', 'equalto', None)|sort(attribute='created_at', reverse=True)|list %}
+      {% set visible_comments = top_comments_sorted[:10] %}
+      {% set hidden_comments = top_comments_sorted[10:] %}
+      {% if visible_comments %}
+      <div class="mt-3 comment-thread" data-post-id="{{ post.id }}">
+        {% for c in visible_comments %}
+          <div class="mb-2 comment-block" id="comment-{{ c.id }}" data-comment-id="{{ c.id }}">
+            <div class="d-flex align-items-center gap-2 comment-heading">
+              <div class="comment-text"><a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=c.user_id) }}">{{ c.user.username if c.user else 'user' }}</a> {{ c.content }}</div>
+              {% if c.is_pinned %}<span class="badge bg-warning text-dark pinned-badge">Pinned</span>{% endif %}
+            </div>
+            <div class="text-muted small d-flex gap-2 align-items-center">
+              <span>{{ c.created_at.strftime('%b %d, %Y %H:%M') if c.created_at else '' }}</span>
+              <a class="text-decoration-none reply-btn" href="#" data-post-id="{{ post.id }}" data-comment-id="{{ c.id }}">Reply</a>
+              {% if current_user and current_user.is_authenticated and ((current_user.id|string) == (c.user_id|string) or (current_user.id|string) == (post.user_id|string)) %}
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 delete-comment-btn" data-comment-id="{{ c.id }}" data-post-id="{{ post.id }}" aria-label="Delete comment"><i class="bi bi-trash"></i></button>
+              {% endif %}
+              {% if current_user and current_user.is_authenticated and (current_user.id|string) == (post.user_id|string) %}
+                <button type="button" class="btn btn-link btn-sm p-0 pin-comment-btn" data-comment-id="{{ c.id }}" data-post-id="{{ post.id }}" data-pinned="{{ 'true' if c.is_pinned else 'false' }}" aria-label="Pin comment">
+                  <i class="bi {{ 'bi-pin-angle-fill' if c.is_pinned else 'bi-pin' }}"></i>
+                </button>
+              {% endif %}
+            </div>
+            <div class="reply-form-slot" id="reply-slot-{{ post.id }}-{{ c.id }}"></div>
+            {% set replies_sorted = post.comments|selectattr('parent_comment_id', 'equalto', c.id)|sort(attribute='created_at', reverse=True)|list %}
+            {% set visible_replies = replies_sorted[:10] %}
+            {% set hidden_replies = replies_sorted[10:] %}
+            {% if replies_sorted %}
+            <div class="ms-3 border-start ps-2 mt-1 replies" data-parent-id="{{ c.id }}">
+              {% for r in visible_replies %}
+              <div class="mb-1 reply-block" id="comment-{{ r.id }}" data-comment-id="{{ r.id }}">
+                <div class="d-flex align-items-center gap-2 comment-heading">
+                  <div class="comment-text"><a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=r.user_id) }}">{{ r.user.username if r.user else 'user' }}</a> {{ r.content }}</div>
+                  {% if r.is_pinned %}<span class="badge bg-warning text-dark pinned-badge">Pinned</span>{% endif %}
+                </div>
+                <div class="text-muted small d-flex gap-2 align-items-center">
+                  <span>{{ r.created_at.strftime('%b %d, %Y %H:%M') if r.created_at else '' }}</span>
+                  <a class="text-decoration-none reply-btn" href="#" data-post-id="{{ post.id }}" data-comment-id="{{ r.id }}">Reply</a>
+                  {% if current_user and current_user.is_authenticated and ((current_user.id|string) == (r.user_id|string) or (current_user.id|string) == (post.user_id|string)) %}
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 delete-comment-btn" data-comment-id="{{ r.id }}" data-post-id="{{ post.id }}" aria-label="Delete comment"><i class="bi bi-trash"></i></button>
+                  {% endif %}
+                  {% if current_user and current_user.is_authenticated and (current_user.id|string) == (post.user_id|string) %}
+                    <button type="button" class="btn btn-link btn-sm p-0 pin-comment-btn" data-comment-id="{{ r.id }}" data-post-id="{{ post.id }}" data-pinned="{{ 'true' if r.is_pinned else 'false' }}" aria-label="Pin comment">
+                      <i class="bi {{ 'bi-pin-angle-fill' if r.is_pinned else 'bi-pin' }}"></i>
+                    </button>
+                  {% endif %}
+                </div>
+                <div class="reply-form-slot" id="reply-slot-{{ post.id }}-{{ r.id }}"></div>
+              </div>
+              {% endfor %}
+              {% if hidden_replies %}
+              <button class="btn btn-link btn-sm p-0 load-more-replies" data-parent-id="{{ c.id }}" data-count="{{ hidden_replies|length }}">View {{ hidden_replies|length }} more replies</button>
+              <div class="d-none more-replies" id="more-replies-{{ c.id }}">
+                {% for r in hidden_replies %}
+                <div class="mb-1 reply-block" id="comment-{{ r.id }}" data-comment-id="{{ r.id }}">
+                  <div class="d-flex align-items-center gap-2 comment-heading">
+                    <div class="comment-text"><a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=r.user_id) }}">{{ r.user.username if r.user else 'user' }}</a> {{ r.content }}</div>
+                    {% if r.is_pinned %}<span class="badge bg-warning text-dark pinned-badge">Pinned</span>{% endif %}
+                  </div>
+                  <div class="text-muted small d-flex gap-2 align-items-center">
+                    <span>{{ r.created_at.strftime('%b %d, %Y %H:%M') if r.created_at else '' }}</span>
+                    <a class="text-decoration-none reply-btn" href="#" data-post-id="{{ post.id }}" data-comment-id="{{ r.id }}">Reply</a>
+                    {% if current_user and current_user.is_authenticated and ((current_user.id|string) == (r.user_id|string) or (current_user.id|string) == (post.user_id|string)) %}
+                      <button type="button" class="btn btn-link btn-sm text-danger p-0 delete-comment-btn" data-comment-id="{{ r.id }}" data-post-id="{{ post.id }}" aria-label="Delete comment"><i class="bi bi-trash"></i></button>
+                    {% endif %}
+                    {% if current_user and current_user.is_authenticated and (current_user.id|string) == (post.user_id|string) %}
+                      <button type="button" class="btn btn-link btn-sm p-0 pin-comment-btn" data-comment-id="{{ r.id }}" data-post-id="{{ post.id }}" data-pinned="{{ 'true' if r.is_pinned else 'false' }}" aria-label="Pin comment">
+                        <i class="bi {{ 'bi-pin-angle-fill' if r.is_pinned else 'bi-pin' }}"></i>
+                      </button>
+                    {% endif %}
+                  </div>
+                  <div class="reply-form-slot" id="reply-slot-{{ post.id }}-{{ r.id }}"></div>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+        {% if hidden_comments %}
+        <button class="btn btn-link btn-sm p-0 load-more-comments" data-post-id="{{ post.id }}" data-count="{{ hidden_comments|length }}">View {{ hidden_comments|length }} more comments</button>
+        <div class="d-none more-comments" id="more-comments-{{ post.id }}">
+          {% for c in hidden_comments %}
+          <div class="mb-2 comment-block" id="comment-{{ c.id }}" data-comment-id="{{ c.id }}">
+            <div class="d-flex align-items-center gap-2 comment-heading">
+              <div class="comment-text"><a class="fw-semibold text-decoration-none" href="{{ url_for('users.view_profile', user_id=c.user_id) }}">{{ c.user.username if c.user else 'user' }}</a> {{ c.content }}</div>
+              {% if c.is_pinned %}<span class="badge bg-warning text-dark pinned-badge">Pinned</span>{% endif %}
+            </div>
+            <div class="text-muted small d-flex gap-2 align-items-center">
+              <span>{{ c.created_at.strftime('%b %d, %Y %H:%M') if c.created_at else '' }}</span>
+              <a class="text-decoration-none reply-btn" href="#" data-post-id="{{ post.id }}" data-comment-id="{{ c.id }}">Reply</a>
+              {% if current_user and current_user.is_authenticated and ((current_user.id|string) == (c.user_id|string) or (current_user.id|string) == (post.user_id|string)) %}
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 delete-comment-btn" data-comment-id="{{ c.id }}" data-post-id="{{ post.id }}" aria-label="Delete comment"><i class="bi bi-trash"></i></button>
+              {% endif %}
+              {% if current_user and current_user.is_authenticated and (current_user.id|string) == (post.user_id|string) %}
+                <button type="button" class="btn btn-link btn-sm p-0 pin-comment-btn" data-comment-id="{{ c.id }}" data-post-id="{{ post.id }}" data-pinned="{{ 'true' if c.is_pinned else 'false' }}" aria-label="Pin comment">
+                  <i class="bi {{ 'bi-pin-angle-fill' if c.is_pinned else 'bi-pin' }}"></i>
+                </button>
+              {% endif %}
+            </div>
+            <div class="reply-form-slot" id="reply-slot-{{ post.id }}-{{ c.id }}"></div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="d-none" id="likes-data-{{ post.id }}">
+        {% if post.likes %}
+        <ul class="list-unstyled mb-0">
+          {% for like in post.likes %}
+          <li><a class="text-decoration-none" href="{{ url_for('users.view_profile', user_id=like.user_id) }}">{{ like.user.username if like.user else 'user' }}</a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">No likes yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-body">No posts yet.</div>
+  </div>
+{% endfor %}
+
+<script>
+if (!window.__postReplyBound) {
+  window.__postReplyBound = true;
+  document.addEventListener('click', function(e) {
+    const replyBtn = e.target.closest('.reply-btn');
+    if (!replyBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const postId = replyBtn.dataset.postId;
+    const commentId = replyBtn.dataset.commentId;
+    const slot = document.getElementById(`reply-slot-${postId}-${commentId}`);
+    if (!slot) return;
+    if (slot.querySelector('form')) return;
+    slot.innerHTML = `
+      <form class="mt-2 reply-form" data-post-id="${postId}" data-parent-id="${commentId}">
+        <div class="input-group input-group-sm">
+          <textarea class="form-control" rows="1" placeholder="Reply..." required></textarea>
+          <button class="btn btn-primary" type="submit">Send</button>
+        </div>
+      </form>
+    `;
+  }, true);
+}
+
+if (!window.__postShareBound) {
+  window.__postShareBound = true;
+  document.addEventListener('click', function(e) {
+    const shareBtn = e.target.closest('.share-btn');
+    if (!shareBtn) return;
+    const url = shareBtn.dataset.url;
+    if (!url) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = url;
+  }, true);
+}
+</script>

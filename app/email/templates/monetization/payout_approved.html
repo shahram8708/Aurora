@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Payout</div>
+  <div class="headline">Your payout was approved</div>
+  <p class="body-text">Hi {{ user.name }}, your payout request has been approved. Funds are on the way.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Amount</td><td style="text-align:right;" class="body-text">{{ amount }}</td></tr>
+      <tr><td class="muted">Method</td><td style="text-align:right;" class="body-text">{{ method or 'Bank transfer' }}</td></tr>
+      <tr><td class="muted">Transaction ID</td><td style="text-align:right;" class="body-text">{{ transaction_id }}</td></tr>
+      <tr><td class="muted">Estimated arrival</td><td style="text-align:right;" class="body-text">{{ eta or '1-3 business days' }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View payout"} %}
+  <p class="muted">For security, we send payout alerts to your verified email.</p>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Highlights{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Highlights</h4>
+  <form class="d-flex gap-2" method="post" action="{{ url_for('stories.create_highlight_route') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="form-control" name="title" placeholder="Title" required>
+    <input class="form-control" name="cover_image" placeholder="Cover image URL">
+    <button class="btn btn-primary" type="submit">Create</button>
+  </form>
+</div>
+<div class="row g-3 mb-4">
+  {% for highlight in highlights %}
+    <div class="col-md-4">
+      <div class="card h-100">
+        {% if highlight.cover_image %}
+          <img src="{{ highlight.cover_image }}" class="card-img-top" alt="cover">
+        {% endif %}
+        <div class="card-body">
+          <h6 class="card-title">{{ highlight.title }}</h6>
+          <div class="d-flex flex-wrap gap-2">
+            {% for item in highlight.items %}
+              <span class="badge bg-secondary">{{ item.story_id }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+<div class="card p-3">
+  <h6>Add archived stories</h6>
+  <div class="row g-3">
+    {% for archive in archives %}
+      <div class="col-md-3">
+        <div class="card h-100">
+          {% if archive.media_url %}
+            <img src="{{ archive.media_url }}" class="card-img-top" alt="archive">
+          {% endif %}
+          <div class="card-body">
+            <form method="post" action="{{ url_for('stories.add_highlight_item', highlight_id=highlights[0].id if highlights else 0) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="story_id" value="{{ archive.id }}">
+              <button class="btn btn-outline-light btn-sm" type="submit">Add</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="col-12"><div class="card"><div class="card-body">No archived stories.</div></div></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

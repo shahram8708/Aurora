@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Payout</div>
+  <div class="headline">Payout could not be processed</div>
+  <p class="body-text">Hi {{ user.name }}, we could not process your payout request.</p>
+  <div class="card">
+    <div class="body-text">Reason</div>
+    <div class="muted" style="margin-top:4px;">{{ reason or 'We detected an issue with the payout details.' }}</div>
+    <div class="muted" style="margin-top:8px;">Transaction ID: {{ transaction_id }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Update payout details"} %}
+  <p class="muted">We blocked this payout to keep your funds safe. Contact support if you need help.</p>
+{% endblock %}

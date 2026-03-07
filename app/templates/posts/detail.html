@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Post{% endblock %}
+{% block content %}
+<div class="container py-4">
+  {% set posts = [post] %}
+  {% include 'partials/post_cards.html' %}
+</div>
+{% endblock %}

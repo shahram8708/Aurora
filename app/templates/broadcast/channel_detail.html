@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ channel.name }} · Broadcast{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2 mb-4">
+  <div>
+    <a class="text-decoration-none small" href="{{ url_for('broadcast.broadcast_dashboard') }}"><i class="bi bi-arrow-left"></i> Back to Broadcast Hub</a>
+    <h1 class="h3 mb-1">{{ channel.name }}</h1>
+    <p class="text-muted mb-0">{{ channel.description or 'No description added yet.' }}</p>
+  </div>
+  <div class="ms-lg-auto d-flex gap-2">
+    {% if not is_owner and not is_subscribed %}
+    <form method="post" action="{{ url_for('broadcast.subscribe_html', channel_id=channel.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary" type="submit">Subscribe</button>
+    </form>
+    {% elif not is_owner and is_subscribed %}
+    <form method="post" action="{{ url_for('broadcast.unsubscribe_html', channel_id=channel.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-secondary" type="submit">Unsubscribe</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('broadcast.broadcast_dashboard') }}">Overview</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Subscribers</div>
+        <div class="fs-3 fw-bold">{{ subscriber_count }}</div>
+        <div class="text-muted small">People receiving updates</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Open rate</div>
+        <div class="fs-3 fw-bold">{{ (open_rate * 100)|round(1) }}%</div>
+        <div class="text-muted small">Across all broadcasts</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase small">Messages</div>
+        <div class="fs-3 fw-bold">{{ messages|length }}</div>
+        <div class="text-muted small">Recent broadcasts</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if is_owner %}
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Send a broadcast</h2>
+      <small class="text-muted">Share updates immediately or schedule them.</small>
+    </div>
+    <form method="post" action="{{ url_for('broadcast.create_broadcast_form_route', channel_id=channel.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Message</label>
+        <textarea class="form-control" name="content" rows="4" placeholder="Shipping update, product launch, release notes" required></textarea>
+      </div>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Schedule (optional)</label>
+          <input class="form-control" type="datetime-local" name="scheduled_at">
+        </div>
+        <div class="col-md-6 text-md-end">
+          <button class="btn btn-primary" type="submit">Publish broadcast</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Recent messages</h2>
+      <small class="text-muted">Sent and scheduled broadcasts</small>
+    </div>
+    {% if messages %}
+    <div class="row g-3">
+      {% for m in messages %}
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="fw-semibold">{{ m.content }}</div>
+            {% if m.sent_at %}
+            <span class="badge text-bg-success">Sent</span>
+            {% elif m.scheduled_at %}
+            <span class="badge text-bg-warning">Scheduled</span>
+            {% else %}
+            <span class="badge text-bg-secondary">Draft</span>
+            {% endif %}
+          </div>
+          <div class="small text-muted mb-2">
+            <div>Created {{ m.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+            {% if m.scheduled_at %}<div>Scheduled {{ m.scheduled_at.strftime('%b %d, %Y %H:%M') }}</div>{% endif %}
+            {% if m.sent_at %}<div>Sent {{ m.sent_at.strftime('%b %d, %Y %H:%M') }}</div>{% endif %}
+          </div>
+          {% if is_owner and not m.sent_at %}
+          <form method="post" action="{{ url_for('broadcast.mark_sent_form_route', message_id=m.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="channel_id" value="{{ channel.id }}">
+            <button class="btn btn-sm btn-outline-primary" type="submit">Mark as sent</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">No broadcasts yet. Start with a welcome message.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Subscribers</h2>
+      <small class="text-muted">Audience roster</small>
+    </div>
+    {% if subscribers %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">User</th>
+            <th scope="col">Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subscribers %}
+          <tr>
+            {% set sub_user = user_map.get(s.user_id) %}
+            <td class="fw-semibold">
+              {% if sub_user %}
+              <a class="link-body-emphasis text-decoration-none" href="{{ url_for('users.view_profile', user_id=sub_user.id) }}">@{{ sub_user.username }}</a>
+              {% else %}
+              Unknown
+              {% endif %}
+            </td>
+            <td class="text-muted">{{ s.joined_at.strftime('%b %d, %Y %H:%M') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">No subscribers yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

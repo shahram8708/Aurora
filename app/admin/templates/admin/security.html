@@ -1,0 +1,524 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Security Center{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Trust & Safety</p>
+    <h2 class="fw-bold text-dark mb-0">Security Control Room</h2>
+    <p class="text-muted mb-0">Configure filters, enforce policies, review sessions, and validate webhooks.</p>
+  </div>
+  <div class="text-end">
+    <span class="badge bg-dark me-2">Age minimum: {{ age_minimum }}</span>
+    <span class="badge bg-secondary">Screen time default: {{ screen_time_default }} min</span>
+  </div>
+</div>
+<div id="status-box"></div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="mb-0 text-dark">DM Filter</h5>
+          <small class="text-muted">Keyword and link shielding for direct messages.</small>
+        </div>
+        <span class="badge bg-primary">/security/dm-filter</span>
+      </div>
+      <form id="dmFilterForm" class="row g-3">
+        <div class="col-4">
+          <label class="form-label small">Username</label>
+          <input class="form-control" name="username" required placeholder="e.g. aurora_admin">
+        </div>
+        <div class="col-8">
+          <label class="form-label small">Block keywords (comma separated)</label>
+          <input class="form-control" name="keywords" placeholder="spam, giveaway, click here">
+        </div>
+        <div class="col-4 form-check">
+          <input class="form-check-input" type="checkbox" name="suspicious_links" id="suspicious_links" checked>
+          <label class="form-check-label" for="suspicious_links">Block suspicious links</label>
+        </div>
+        <div class="col-4 form-check">
+          <input class="form-check-input" type="checkbox" name="shadow_ban" id="shadow_ban">
+          <label class="form-check-label" for="shadow_ban">Shadow ban sender</label>
+        </div>
+        <div class="col-4 text-end">
+          <button class="btn btn-dark" type="submit">Save Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="mb-0 text-dark">Comment Filter</h5>
+          <small class="text-muted">Auto-hide toxic replies and personal blocklists.</small>
+        </div>
+        <span class="badge bg-primary">/security/comment-filter</span>
+      </div>
+      <form id="commentFilterForm" class="row g-3">
+        <div class="col-4">
+          <label class="form-label small">Username</label>
+          <input class="form-control" name="username" required placeholder="e.g. aurora_admin">
+        </div>
+        <div class="col-4">
+          <label class="form-label small">Global keywords</label>
+          <input class="form-control" name="global_keywords" placeholder="hate, scam">
+        </div>
+        <div class="col-4">
+          <label class="form-label small">Blocked keywords</label>
+          <input class="form-control" name="blocked_keywords" placeholder="spoiler, rumor">
+        </div>
+        <div class="col-8 form-check">
+          <input class="form-check-input" type="checkbox" name="auto_hide" id="auto_hide" checked>
+          <label class="form-check-label" for="auto_hide">Auto-hide matching comments</label>
+        </div>
+        <div class="col-4 text-end">
+          <button class="btn btn-dark" type="submit">Save Comment Rules</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="mb-0 text-dark">Age Restriction</h6>
+          <small class="text-muted">Suspend underage accounts.</small>
+        </div>
+        <span class="badge bg-warning text-dark">/security/age-restriction</span>
+      </div>
+      <form id="ageForm" class="row g-2">
+        <div class="col-7">
+          <label class="form-label small">Username</label>
+          <input class="form-control" name="username" required placeholder="e.g. teen_user">
+        </div>
+        <div class="col-5">
+          <label class="form-label small">Age</label>
+          <input class="form-control" name="age" type="number" min="0" value="{{ age_minimum }}" required>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-outline-dark" type="submit">Enforce</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="mb-0 text-dark">Parental Link</h6>
+          <small class="text-muted">Tie child accounts to guardians.</small>
+        </div>
+        <span class="badge bg-warning text-dark">/security/parental/link</span>
+      </div>
+      <form id="parentLinkForm" class="row g-2">
+        <div class="col-6">
+          <label class="form-label small">Child username</label>
+          <input class="form-control" name="child_username" required placeholder="kiddo123">
+        </div>
+        <div class="col-6">
+          <label class="form-label small">Parent username</label>
+          <input class="form-control" name="parent_username" required placeholder="parental_guardian">
+        </div>
+        <div class="col-12">
+          <p class="small text-muted mb-2">Restricted mode will turn on and screen time defaults to {{ screen_time_default }} minutes.</p>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-outline-dark" type="submit">Link Accounts</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h6 class="mb-0 text-dark">Enforcement</h6>
+          <small class="text-muted">Strikes and appeals intake.</small>
+        </div>
+        <span class="badge bg-danger">/security/strike</span>
+      </div>
+      <form id="strikeForm" class="row g-2 mb-3">
+        <div class="col-5">
+          <label class="form-label small">Username</label>
+          <input class="form-control" name="username" required placeholder="policy_breaker">
+        </div>
+        <div class="col-4">
+          <label class="form-label small">Severity</label>
+          <select class="form-select" name="severity">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="col-3">
+          <label class="form-label small">Reason</label>
+          <input class="form-control" name="reason" value="policy_violation">
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-danger" type="submit">Issue Strike</button>
+        </div>
+      </form>
+      <div class="border-top pt-2">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge bg-secondary">/security/appeals</span>
+          <small class="text-muted">Log an appeal</small>
+        </div>
+        <form id="appealForm" class="row g-2">
+          <div class="col-5">
+            <label class="form-label small">Strike ID</label>
+            <input class="form-control" name="strike_id" required>
+          </div>
+          <div class="col-7">
+            <label class="form-label small">Username</label>
+            <input class="form-control" name="username" required placeholder="user appealing">
+          </div>
+          <div class="col-12">
+            <label class="form-label small">Notes</label>
+            <textarea class="form-control" name="notes" rows="2" placeholder="Context or supporting info"></textarea>
+          </div>
+          <div class="col-12 text-end">
+            <button class="btn btn-outline-secondary" type="submit">Submit Appeal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="mb-0 text-dark">Session Intelligence</h5>
+          <small class="text-muted">Inspect and revoke active sessions by user.</small>
+        </div>
+        <span class="badge bg-success">/security/sessions</span>
+      </div>
+      <form id="sessionLookupForm" class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+          <label class="form-label small">Username</label>
+          <input class="form-control" name="username" required placeholder="user handle">
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-dark" type="submit">Load Sessions</button>
+        </div>
+      </form>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0" id="sessionsTable">
+          <thead><tr><th>Username</th><th>ID</th><th>IP</th><th>User Agent</th><th>Active</th><th>Last Seen</th><th></th></tr></thead>
+          <tbody><tr><td colspan="7" class="text-muted">No sessions loaded</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mt-2">
+  <div class="col-12">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="mb-0 text-dark">Security Action Log</h5>
+          <small class="text-muted">Recent admin actions against users.</small>
+        </div>
+        <span class="badge bg-secondary">Audit</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0" id="actionLogTable">
+          <thead><tr><th>Action</th><th>User</th><th>Details</th><th>When</th></tr></thead>
+          <tbody><tr><td colspan="4" class="text-muted">No actions yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card stat-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h5 class="mb-0 text-dark">Webhook Validator</h5>
+          <small class="text-muted">Test Razorpay webhook signature verification.</small>
+        </div>
+        <span class="badge bg-info text-dark">/security/validate-webhook</span>
+      </div>
+      <form id="webhookForm" class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label small">X-Razorpay-Signature</label>
+          <input class="form-control" name="signature" placeholder="signature string" required>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small">Webhook payload (JSON)</label>
+          <textarea class="form-control" name="payload" rows="4" placeholder='{"event":"payment.captured"}' required></textarea>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-outline-dark" type="submit">Validate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const statusBox = document.getElementById('status-box');
+  const sessionsTable = document.querySelector('#sessionsTable tbody');
+  const actionLogTable = document.querySelector('#actionLogTable tbody');
+
+  const toList = (value) => (value || '').split(',').map(v => v.trim()).filter(Boolean);
+
+  const resolveUser = async (username) => {
+    const resp = await fetch(`/admin/security/lookup?username=${encodeURIComponent(username)}`, {credentials: 'same-origin'});
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'User not found');
+    return data;
+  };
+
+  const showStatus = (message, level = 'info') => {
+    statusBox.innerHTML = `<div class="alert alert-${level} alert-dismissible fade show" role="alert">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+  };
+
+  const postJSON = async (url, payload, method = 'POST', headers = {}) => {
+    const resp = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+        ...headers,
+      },
+      credentials: 'same-origin',
+      body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(payload),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const reason = data.error || resp.statusText || 'Request failed';
+      throw new Error(reason);
+    }
+    return data;
+  };
+
+  const logAction = async (action, userInfo, metadata = {}) => {
+    await postJSON('/admin/security/actions', {
+      action,
+      username: userInfo?.username,
+      target_id: userInfo?.id,
+      metadata,
+    });
+    loadActionLog();
+  };
+
+  document.getElementById('dmFilterForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const user = await resolveUser(form.username.value.trim());
+    const payload = {
+        user_id: user.id,
+        keywords: toList(form.keywords.value),
+        suspicious_links: form.suspicious_links.checked,
+        shadow_ban: form.shadow_ban.checked,
+      };
+      const res = await postJSON('/security/dm-filter', payload);
+      await logAction('dm_filter', user, {keywords: payload.keywords, suspicious_links: payload.suspicious_links, shadow_ban: payload.shadow_ban});
+      showStatus(`DM filter updated for ${user.username}: ${JSON.stringify(res)}`, 'success');
+    } catch (err) {
+      showStatus(`DM filter failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('commentFilterForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const user = await resolveUser(form.username.value.trim());
+    const payload = {
+        user_id: user.id,
+        global_keywords: toList(form.global_keywords.value),
+        blocked_keywords: toList(form.blocked_keywords.value),
+        auto_hide: form.auto_hide.checked,
+      };
+      const res = await postJSON('/security/comment-filter', payload);
+      await logAction('comment_filter', user, payload);
+      showStatus(`Comment filter saved for ${user.username}: ${JSON.stringify(res)}`, 'success');
+    } catch (err) {
+      showStatus(`Comment filter failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('ageForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const user = await resolveUser(form.username.value.trim());
+    const payload = {
+        user_id: user.id,
+        age: Number(form.age.value || 0),
+      };
+      const res = await postJSON('/security/age-restriction', payload);
+      const statusText = res.status === 'suspended' ? 'User suspended' : 'User ok';
+      await logAction('age_restriction', user, payload);
+      showStatus(`${statusText} for ${user.username}: ${JSON.stringify(res)}`, 'warning');
+    } catch (err) {
+      showStatus(`Age check failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('parentLinkForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const child = await resolveUser(form.child_username.value.trim());
+      const parent = await resolveUser(form.parent_username.value.trim());
+      const payload = {
+        child_id: child.id,
+        parent_id: parent.id,
+      };
+      const res = await postJSON('/security/parental/link', payload);
+      await logAction('parental_link', child, {parent: parent.username});
+      showStatus(`Parent link updated: ${child.username} -> ${parent.username}`, 'success');
+    } catch (err) {
+      showStatus(`Parental link failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('strikeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const user = await resolveUser(form.username.value.trim());
+    const payload = {
+        user_id: user.id,
+        reason: form.reason.value.trim() || 'policy_violation',
+        severity: form.severity.value,
+      };
+      const res = await postJSON('/security/strike', payload);
+      await logAction('strike', user, payload);
+      showStatus(`Strike issued for ${user.username}: ${res.strike_id || 'created'}`, 'success');
+    } catch (err) {
+      showStatus(`Strike failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('appealForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      const user = await resolveUser(form.username.value.trim());
+      const payload = {
+        strike_id: form.strike_id.value.trim(),
+        user_id: user.id,
+        notes: form.notes.value.trim() || null,
+      };
+      const res = await postJSON('/security/appeals', payload);
+      await logAction('appeal', user, payload);
+      showStatus(`Appeal submitted for ${user.username}: ${JSON.stringify(res)}`, 'info');
+    } catch (err) {
+      showStatus(`Appeal failed: ${err.message}`, 'danger');
+    }
+  });
+
+  const renderSessions = (sessions, userInfo) => {
+    sessionsTable.innerHTML = '';
+    if (!sessions || !sessions.length) {
+      sessionsTable.innerHTML = '<tr><td colspan="7" class="text-muted">No active sessions</td></tr>';
+      return;
+    }
+    sessions.forEach((s) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${userInfo?.username ? `<a href="${userInfo.profile_url}" target="_blank">${userInfo.username}</a>` : '-'}</td>
+        <td>${s.id}</td>
+        <td>${s.ip || '-'}</td>
+        <td class="text-truncate" style="max-width:240px">${s.user_agent || ''}</td>
+        <td>${s.active ? 'Yes' : 'No'}</td>
+        <td>${s.last_seen_at || ''}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-session="${s.id}">Revoke</button></td>
+      `;
+      sessionsTable.appendChild(tr);
+    });
+  };
+
+  document.getElementById('sessionLookupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const user = await resolveUser(e.target.username.value.trim());
+      const data = await postJSON(`/security/sessions/${user.id}`, {}, 'GET');
+      renderSessions(data, user);
+      await logAction('sessions_list', user, {count: data.length});
+      showStatus(`Sessions loaded for ${user.username}`, 'success');
+    } catch (err) {
+      renderSessions([]);
+      showStatus(`Session lookup failed: ${err.message}`, 'danger');
+    }
+  });
+
+  sessionsTable.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-session]');
+    if (!btn) return;
+    const sessionId = btn.getAttribute('data-session');
+    try {
+      await postJSON(`/security/sessions/${sessionId}`, {}, 'DELETE');
+      btn.closest('tr').remove();
+      await logAction('session_revoke', null, {session_id: sessionId});
+      showStatus('Session revoked', 'warning');
+    } catch (err) {
+      showStatus(`Revoke failed: ${err.message}`, 'danger');
+    }
+  });
+
+  document.getElementById('webhookForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const signature = form.signature.value.trim();
+    const payload = form.payload.value || '';
+    try {
+      const resp = await fetch('/security/validate-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Razorpay-Signature': signature,
+          'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin',
+        body: payload,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.valid === false ? 'invalid signature' : 'validation failed');
+      showStatus(`Webhook valid: ${JSON.stringify(data)}`, 'success');
+      await logAction('webhook_validate', null, {valid: data.valid !== false});
+    } catch (err) {
+      showStatus(`Webhook invalid: ${err.message}`, 'danger');
+    }
+  });
+
+  const loadActionLog = async () => {
+    const resp = await fetch('/admin/security/actions?limit=50', {credentials: 'same-origin'});
+    const data = await resp.json().catch(() => []);
+    actionLogTable.innerHTML = '';
+    if (!Array.isArray(data) || !data.length) {
+      actionLogTable.innerHTML = '<tr><td colspan="4" class="text-muted">No actions yet</td></tr>';
+      return;
+    }
+    data.forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="badge bg-light text-dark">${row.action}</span></td>
+        <td>${row.username ? `<a href="${row.profile_url}" target="_blank">${row.username}</a>` : '-'}</td>
+        <td><pre class="mb-0 small" style="white-space:pre-wrap">${JSON.stringify(row.metadata || {}, null, 2)}</pre></td>
+        <td class="text-muted small">${row.created_at || ''}</td>
+      `;
+      actionLogTable.appendChild(tr);
+    });
+  };
+
+  loadActionLog();
+})();
+</script>
+{% endblock %}

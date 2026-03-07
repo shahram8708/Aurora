@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Data export</div>
+  <div class="headline">Your data export is ready</div>
+  <p class="body-text">Hi {{ user.name }}, your requested data export is ready to download. For security, the link expires in {{ expires_hours }} hours.</p>
+  {% with url=download_url, label="Download export" %}
+    {% include "components/button.html" %}
+  {% endwith %}
+  <p class="body-text">If you did not request this, secure your account immediately and let us know. The link is signed and will expire automatically.</p>
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

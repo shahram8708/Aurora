@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>{{ subject or brand }}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin:0; padding:0; background:#f4f6fb; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { width:100%; table-layout:fixed; background:#f4f6fb; padding:20px 0; }
+    .main { width:100%; max-width:600px; background:#ffffff; margin:0 auto; border-radius:16px; overflow:hidden; box-shadow:0 6px 24px rgba(17, 24, 39, 0.08); }
+    .inner { padding:32px 32px 12px 32px; }
+    .brand { font-weight:700; font-size:20px; color:#0f172a; letter-spacing:-0.2px; }
+    .muted { color:#6b7280; font-size:14px; line-height:20px; }
+    .eyebrow { font-size:12px; letter-spacing:0.6px; text-transform:uppercase; color:#6b7280; font-weight:600; }
+    .headline { font-size:24px; line-height:32px; color:#111827; margin:8px 0 12px; font-weight:700; }
+    .body-text { font-size:15px; line-height:22px; color:#1f2937; }
+    .card { border:1px solid #e5e7eb; border-radius:12px; padding:18px; margin:16px 0; background:#f9fafb; }
+    .stack { width:100%; }
+    .footer { padding:20px 32px 32px 32px; background:#0b1021; color:#cbd5e1; font-size:12px; line-height:18px; }
+    .footer a { color:#e0e7ff; text-decoration:none; }
+    .divider { border-top:1px solid #e5e7eb; margin:20px 0; }
+    .pill { display:inline-block; padding:8px 12px; border-radius:999px; background:rgba(91,91,214,0.08); color:#4338ca; font-size:12px; font-weight:600; letter-spacing:0.2px; }
+    .table-cta { width:100%; }
+    .cta { display:block; text-align:center; background:{{ primary_color }}; color:#ffffff !important; padding:14px 16px; border-radius:10px; font-weight:700; text-decoration:none; box-shadow:0 10px 30px rgba(91,91,214,0.25); }
+    .cta:hover { filter:brightness(0.96); }
+    .full-width { width:100%; }
+    @media (max-width:620px) {
+      .main { border-radius:0; }
+      .inner { padding:24px 18px 12px 18px; }
+      .footer { padding:20px 18px 24px 18px; }
+      .cta { width:100%; }
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background:#0f172a; }
+      .wrapper { background:#0f172a; }
+      .main { background:#0b1220; box-shadow:0 6px 24px rgba(0,0,0,0.35); }
+      .inner { color:#e5e7eb; }
+      .headline { color:#f3f4f6; }
+      .body-text { color:#e5e7eb; }
+      .muted { color:#9ca3af; }
+      .card { background:#111827; border-color:#1f2937; }
+      .divider { border-color:#1f2937; }
+    }
+  </style>
+</head>
+<body>
+  <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;color:transparent;line-height:0;font-size:0;">{{ preview_text or '' }}</span>
+  <table role="presentation" class="wrapper" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td align="center">
+        <table role="presentation" class="main" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td style="padding:24px 32px 8px 32px; text-align:center;">
+              <div class="brand">{{ brand }}</div>
+              <div class="muted" style="margin-top:6px;">Human-centered, secure-by-default updates</div>
+              <div class="divider"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="inner">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+          <tr>
+            <td class="footer">
+              <div style="margin-bottom:12px;">You received this email because you have an account with {{ brand }}.</div>
+              <div style="margin-bottom:12px;">
+                <a href="{{ unsubscribe_url }}">Unsubscribe</a> ·
+                <a href="{{ privacy_url }}">Privacy</a> ·
+                <a href="{{ support_url }}">Support</a>
+              </div>
+              <div style="margin-bottom:12px;">{{ company_address }}</div>
+              <div style="margin-bottom:8px;">
+                <a href="{{ social.facebook }}">Facebook</a> ·
+                <a href="{{ social.twitter }}">Twitter</a> ·
+                <a href="{{ social.instagram }}">Instagram</a>
+              </div>
+              <div style="color:#94a3b8;">© {{ year }} {{ brand }}. All rights reserved.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

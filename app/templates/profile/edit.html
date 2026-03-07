@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Edit Profile{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h4 class="mb-3">Edit Profile</h4>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_access_token') }}">
+          {{ form.hidden_tag() }}
+          <div class="row g-3">
+            <div class="col-md-6">{{ form.username.label(class_='form-label') }}{{ form.username(class_='form-control') }}</div>
+            <div class="col-md-6">{{ form.name.label(class_='form-label') }}{{ form.name(class_='form-control') }}</div>
+            <div class="col-md-6">{{ form.gender.label(class_='form-label') }}{{ form.gender(class_='form-control') }}</div>
+            <div class="col-12">{{ form.bio.label(class_='form-label') }}{{ form.bio(class_='form-control', rows=3) }}</div>
+            <div class="col-md-6">{{ form.contact_email.label(class_='form-label') }}{{ form.contact_email(class_='form-control') }}</div>
+            <div class="col-md-6">{{ form.contact_phone.label(class_='form-label') }}{{ form.contact_phone(class_='form-control') }}</div>
+            <div class="col-12">{{ form.address.label(class_='form-label') }}{{ form.address(class_='form-control') }}</div>
+            <div class="col-md-6">{{ form.category.label(class_='form-label') }}{{ form.category(class_='form-control') }}</div>
+            <div class="col-md-6">{{ form.profile_photo.label(class_='form-label') }}{{ form.profile_photo(class_='form-control') }}</div>
+            <div class="col-md-6 form-check mt-3">{{ form.is_private(class_='form-check-input') }}{{ form.is_private.label(class_='form-check-label ms-2') }}</div>
+            <div class="col-md-6 form-check mt-3">{{ form.is_professional(class_='form-check-input') }}{{ form.is_professional.label(class_='form-check-label ms-2') }}</div>
+          </div>
+          <hr>
+          <h5>Links</h5>
+          <div class="row g-2">
+            {% for entry in form.links %}
+              <div class="col-md-4">{{ entry.form.label.label(class_='form-label') }}{{ entry.form.label(class_='form-control') }}</div>
+              <div class="col-md-8">{{ entry.form.url.label(class_='form-label') }}{{ entry.form.url(class_='form-control') }}</div>
+            {% endfor %}
+          </div>
+          <div class="mt-4 d-flex justify-content-between">
+            <a href="{{ url_for('users.profile') }}" class="btn btn-outline-secondary">Cancel</a>
+            {{ form.submit(class_='btn btn-primary') }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

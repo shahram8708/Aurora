@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Delivery</div>
+  <div class="headline">Order delivered</div>
+  <p class="body-text">Hi {{ user.name }}, your order has been delivered. Let us know if everything looks good.</p>
+  <div class="card">
+    <div class="body-text">Order ID</div>
+    <div class="muted" style="margin-top:4px;">{{ order_id }}</div>
+    <div class="muted" style="margin-top:8px;">Delivered at {{ delivered_at or timestamp }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View order"} %}
+  <p class="muted">If you did not receive this package, report an issue within 48 hours.</p>
+{% endblock %}

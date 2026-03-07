@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Two-factor code</div>
+  <div class="headline">Your login code</div>
+  <p class="body-text">Hi {{ user.name }}, use this one-time code to complete your sign-in. It expires in {{ expires_minutes }} minutes.</p>
+  <div class="card" style="text-align:center;">
+    <div class="pill">Security code</div>
+    <div style="font-size:32px;font-weight:700;letter-spacing:4px;margin:12px 0;color:#111827;">{{ otp_code }}</div>
+    <div class="muted">Requested from {{ ip or 'unknown IP' }} · {{ device or 'device not captured' }}</div>
+  </div>
+  <p class="body-text">If this was not you, please secure your account now and change your password. You can also invalidate sessions from the security settings page.</p>
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

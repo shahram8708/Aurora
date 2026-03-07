@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Live reminder</div>
+  <div class="headline">Live session is starting soon</div>
+  <p class="body-text">Hi {{ user.name }}, {{ actor or 'a creator you follow' }} is going live. Set a reminder and join early to interact.</p>
+  <div class="card">
+    <div class="body-text">Topic</div>
+    <div class="muted" style="margin-top:4px;">{{ meta.topic or 'Live session' }}</div>
+    <div class="muted" style="margin-top:6px;">Starts at {{ meta.start_time or timestamp }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Join live"} %}
+  <p class="muted">We only send reminders you opted into. Manage preferences anytime.</p>
+{% endblock %}

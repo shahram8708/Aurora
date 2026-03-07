@@ -1,0 +1,65 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.nox/
+.coverage
+.coverage.*
+.pytest_cache/
+.coverage.
+coverage.xml
+*.cover
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Environments and secrets
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Flask / Alembic migrations
+migrations/
+
+# Docker
+.docker/
+docker-data/
+docker-compose.override.yml
+
+# Static assets / builds
+node_modules/
+staticfiles/
+
+# OS generated
+.DS_Store
+desktop.ini

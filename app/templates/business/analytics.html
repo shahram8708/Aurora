@@ -1,0 +1,805 @@
+{% extends "base.html" %}
+{% block title %}Business Hub{% endblock %}
+{% block content %}
+<style>
+  .chart-fixed {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    min-height: 220px;
+    max-height: 320px;
+  }
+</style>
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <p class="text-muted mb-1 small">Business & Monetization</p>
+    <h3 class="mb-1">Creator Business Hub</h3>
+    <p class="mb-0 text-secondary">See performance, audiences, and campaigns in one place.</p>
+  </div>
+  <form id="dateForm" class="d-flex flex-wrap gap-2 align-items-center">
+    <label class="form-label mb-0 small text-muted" for="start">Range</label>
+    <input type="date" id="start" name="start" class="form-control form-control-sm" required>
+    <input type="date" id="end" name="end" class="form-control form-control-sm" required>
+    <button class="btn btn-primary btn-sm" type="submit">Update</button>
+  </form>
+</div>
+
+<ul class="nav nav-pills gap-2 mb-4" id="sectionNav">
+  <li class="nav-item"><a class="nav-link active" href="#overview">Overview</a></li>
+  <li class="nav-item"><a class="nav-link" href="#content">Content</a></li>
+  <li class="nav-item"><a class="nav-link" href="#ads">Ad Campaigns</a></li>
+</ul>
+
+<section id="overview" class="mb-5">
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Reach</p>
+          <h4 class="mb-0" id="reachMetric">--</h4>
+          <small class="text-secondary">Unique viewers across formats</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Impressions</p>
+          <h4 class="mb-0" id="impressionsMetric">--</h4>
+          <small class="text-secondary">Story + reel impressions</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Engagement rate</p>
+          <h4 class="mb-0" id="engagementMetric">--</h4>
+          <small class="text-secondary">Likes + comments per view</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Follower growth</p>
+          <h4 class="mb-0" id="followersMetric">--</h4>
+          <small class="text-secondary">New followers in range</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Revenue</p>
+          <h4 class="mb-0" id="revenueMetric">--</h4>
+          <small class="text-secondary">Net after payouts</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Live views</p>
+          <h4 class="mb-0" id="liveMetric">--</h4>
+          <small class="text-secondary">Participants across sessions</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-muted mb-0">Campaigns</h6>
+        <small class="text-secondary">Recent boosts</small>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Dates</th>
+              <th class="text-end">Budget</th>
+              <th class="text-end">Per day</th>
+              <th>Status</th>
+              <th>Order</th>
+            </tr>
+          </thead>
+          <tbody id="campaignsBody">
+            <tr><td colspan="6" class="text-muted">No campaigns yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Traffic & reach</h6>
+            <span class="badge text-bg-light" id="rangeLabel"></span>
+          </div>
+          <canvas id="reachChart" class="chart-fixed"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Revenue mix</h6>
+            <small class="text-secondary">Gross vs platform fees</small>
+          </div>
+          <canvas id="revenueChart" class="chart-fixed"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Audience</h6>
+            <small class="text-secondary">Top regions</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Age</th>
+                  <th>Gender</th>
+                  <th>Region</th>
+                  <th class="text-end">Share</th>
+                </tr>
+              </thead>
+              <tbody id="audienceBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Engagement & growth</h6>
+            <small class="text-secondary">Rate vs followers</small>
+          </div>
+          <canvas id="engagementChart" class="chart-fixed"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="content" class="mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="text-muted small mb-1">Content</p>
+      <h5 class="mb-0">Reels, posts, and watch time</h5>
+    </div>
+    <div class="text-end">
+      <small class="text-secondary">Best reel</small>
+      <div id="bestReel" class="fw-semibold">--</div>
+      <small class="text-secondary">Best post</small>
+      <div id="bestPost" class="fw-semibold">--</div>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Reels performance</h6>
+            <small class="text-secondary">Views, engagement, watch time</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Title</th>
+                  <th class="text-end">Views</th>
+                  <th class="text-end">Engagement</th>
+                  <th class="text-end">Watch time</th>
+                </tr>
+              </thead>
+              <tbody id="reelTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Posts engagement</h6>
+            <small class="text-secondary">Comments + likes per post</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Title</th>
+                  <th class="text-end">Engagement rate</th>
+                </tr>
+              </thead>
+              <tbody id="postTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ads" class="mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="text-muted small mb-1">Advertising</p>
+      <h5 class="mb-0">Ad performance and boosts</h5>
+    </div>
+    <div class="text-end">
+      <small class="text-secondary">Campaign status</small>
+      <div id="campaignStatus" class="text-muted">No campaign created yet</div>
+    </div>
+  </div>
+  <div id="campaignSummary" class="alert alert-secondary d-none" role="alert">
+    <div class="fw-semibold" id="campaignNameLabel">—</div>
+    <div class="small mb-1" id="campaignDateLabel">—</div>
+    <div class="small" id="campaignBudgetLabel">—</div>
+    <div class="small text-muted" id="campaignOrderLabel">—</div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Impressions</p>
+          <h4 class="mb-0" id="adsImpressions">--</h4>
+          <small class="text-secondary">Total delivered</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Clicks</p>
+          <h4 class="mb-0" id="adsClicks">--</h4>
+          <small class="text-secondary">Traffic from ads</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">CTR</p>
+          <h4 class="mb-0" id="adsCTR">--</h4>
+          <small class="text-secondary">Click-through rate</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Earnings</p>
+          <h4 class="mb-0" id="adsEarnings">--</h4>
+          <small class="text-secondary">Before fees</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Ad outcomes</h6>
+            <small class="text-secondary">Quality at a glance</small>
+          </div>
+          <canvas id="adsChart" class="chart-fixed"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted mb-0">Create a boost</h6>
+            <small class="text-secondary">Charge happens after order</small>
+          </div>
+          <form id="campaignForm" class="row g-2">
+            <div class="col-12">
+              <label class="form-label small text-muted" for="campaignName">Campaign name</label>
+              <input class="form-control" id="campaignName" name="name" placeholder="Spring launch" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted" for="postId">Post or reel ID</label>
+              <input class="form-control" id="postId" name="post_id" placeholder="UUID of the post" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted" for="budget">Budget (₹)</label>
+              <input type="number" min="100" step="50" class="form-control" id="budget" name="budget" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted" for="campaignAudience">Audience (optional)</label>
+              <input class="form-control" id="campaignAudience" name="audience" placeholder="e.g. IN, 18-34, female">
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted" for="campaignStart">Start date</label>
+              <input type="date" class="form-control" id="campaignStart" name="start_date" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted" for="campaignEnd">End date</label>
+              <input type="date" class="form-control" id="campaignEnd" name="end_date" required>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary w-100" type="submit">Create campaign</button>
+            </div>
+            <div class="col-12">
+              <div id="campaignAlert" class="alert alert-info d-none mb-0" role="alert"></div>
+            </div>
+            <div class="col-12">
+              <div class="border rounded p-2 bg-light" id="paymentBox" style="display:none;">
+                <div class="small text-muted">Order ready</div>
+                <div class="fw-semibold" id="orderIdLabel">—</div>
+                <div class="small text-secondary" id="orderAmountLabel">—</div>
+                <button class="btn btn-success btn-sm mt-2" type="button" id="payButton">Pay now</button>
+                <div class="text-danger small mt-1" id="payWarning" style="display:none;">Payment key missing. Ask support to enable checkout.</div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const razorpayKey = "{{ config.get('RAZORPAY_KEY_ID', '') }}";
+  const endpoints = {
+    insights: "{{ url_for('business.analytics_data') }}",
+    content: "{{ url_for('business.content') }}",
+    ads: "{{ url_for('business.ads') }}",
+    createCampaign: "{{ url_for('business.create_campaign') }}",
+    latestCampaign: "{{ url_for('business.latest_campaign') }}",
+    campaigns: "{{ url_for('business.list_campaigns') }}",
+  };
+
+  const startInput = document.getElementById('start');
+  const endInput = document.getElementById('end');
+  const rangeLabel = document.getElementById('rangeLabel');
+  const alertBox = document.getElementById('campaignAlert');
+  const campaignStatus = document.getElementById('campaignStatus');
+  const paymentBox = document.getElementById('paymentBox');
+  const payButton = document.getElementById('payButton');
+  const orderIdLabel = document.getElementById('orderIdLabel');
+  const orderAmountLabel = document.getElementById('orderAmountLabel');
+  const payWarning = document.getElementById('payWarning');
+  const payStatus = document.getElementById('payStatus');
+  const campaignSummary = document.getElementById('campaignSummary');
+  const campaignNameLabel = document.getElementById('campaignNameLabel');
+  const campaignDateLabel = document.getElementById('campaignDateLabel');
+  const campaignBudgetLabel = document.getElementById('campaignBudgetLabel');
+  const campaignOrderLabel = document.getElementById('campaignOrderLabel');
+  const campaignsBody = document.getElementById('campaignsBody');
+  const charts = {};
+
+  function formatNumber(value) {
+    return Number(value || 0).toLocaleString('en-IN');
+  }
+
+  function formatPercent(value) {
+    return `${(Number(value || 0) * 100).toFixed(1)}%`;
+  }
+
+  function formatCurrency(paise) {
+    const amount = Number(paise || 0) / 100;
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+  }
+
+  function safeNumber(value) {
+    return Number(value || 0);
+  }
+
+  function setText(id, text) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = text;
+  }
+
+  function upsertChart(id, config) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id), config);
+  }
+
+  function setOrderDisplay(order) {
+    if (!orderAmountLabel || !order) return;
+    const amountRupees = order.amount ? (Number(order.amount) / 100).toFixed(0) : '0';
+    const days = order.notes?.days;
+    const daily = order.notes?.daily_budget_rupees;
+    let summary = `Amount: ₹${amountRupees}`;
+    if (days && daily) {
+      summary += ` (₹${daily}/day × ${days} days)`;
+    }
+    orderAmountLabel.textContent = summary;
+  }
+
+  function showCampaignSummary(details) {
+    if (!campaignSummary || !details) return;
+    const formName = document.getElementById('campaignName')?.value;
+    const formStart = document.getElementById('campaignStart')?.value;
+    const formEnd = document.getElementById('campaignEnd')?.value;
+
+    const name = details.name || formName || 'Campaign';
+    const start = details.start_date || formStart;
+    const end = details.end_date || formEnd;
+    const days = details.days || details.notes?.days;
+    const daily = details.daily_budget || details.notes?.daily_budget_rupees;
+    const totalRupees = details.budget
+      ? Number(details.budget)
+      : details.amount
+        ? Number(details.amount) / 100
+        : null;
+
+    if (campaignNameLabel) campaignNameLabel.textContent = name;
+    if (campaignDateLabel) campaignDateLabel.textContent = start && end ? `${start} → ${end}${days ? ` (${days} days)` : ''}` : '';
+    if (campaignBudgetLabel) campaignBudgetLabel.textContent = totalRupees ? `Budget: ₹${Math.round(totalRupees)}${daily ? ` (₹${daily}/day)` : ''}` : '';
+    if (campaignOrderLabel) campaignOrderLabel.textContent = details.order_id || details.id ? `Order: ${details.order_id || details.id}` : '';
+    const statusText = details.display_status || details.status;
+    if (statusText && campaignStatus) campaignStatus.textContent = `Status: ${statusText}`;
+    campaignSummary.classList.remove('d-none');
+  }
+
+  function renderCampaigns(list) {
+    if (!campaignsBody) return;
+    if (!list || !list.length) {
+      campaignsBody.innerHTML = '<tr><td colspan="6" class="text-muted">No campaigns yet</td></tr>';
+      return;
+    }
+    campaignsBody.innerHTML = list
+      .map((c) => {
+        const dateRange = c.start_date && c.end_date ? `${c.start_date} → ${c.end_date}` : '—';
+        const budget = c.budget ? `₹${Number(c.budget).toLocaleString('en-IN')}` : '—';
+        const perDay = c.daily_budget ? `₹${Number(c.daily_budget).toLocaleString('en-IN')}` : '—';
+        const order = c.order_id || '—';
+        const status = c.display_status || c.status || '—';
+        return `<tr><td>${c.name || 'Campaign'}</td><td>${dateRange}</td><td class="text-end">${budget}</td><td class="text-end">${perDay}</td><td>${status}</td><td>${order}</td></tr>`;
+      })
+      .join('');
+  }
+
+  function buildAudienceTable(audience) {
+    const body = document.getElementById('audienceBody');
+    if (!body) return;
+    if (!audience || !audience.length) {
+      body.innerHTML = '<tr><td colspan="4" class="text-muted">No audience data yet</td></tr>';
+      return;
+    }
+    const total = audience.reduce((sum, item) => sum + (item.count || 0), 0) || 1;
+    body.innerHTML = audience
+      .slice(0, 6)
+      .map((item) => {
+        const share = Math.round(((item.count || 0) / total) * 100);
+        const region = [item.country, item.city].filter(Boolean).join(' / ') || '—';
+        return `<tr><td>${item.age_group || '-'}</td><td>${item.gender || '-'}</td><td>${region}</td><td class="text-end">${share}%</td></tr>`;
+      })
+      .join('');
+  }
+
+  function renderInsights(data) {
+    setText('reachMetric', formatNumber(data.reach));
+    setText('impressionsMetric', formatNumber(data.impressions));
+    setText('engagementMetric', formatPercent(data.engagement_rate));
+    setText('followersMetric', formatNumber(data.follower_growth));
+    setText('revenueMetric', formatCurrency(data.revenue));
+    setText('liveMetric', formatNumber(data.live_views));
+    rangeLabel.textContent = `${startInput.value} → ${endInput.value}`;
+
+    upsertChart('reachChart', {
+      type: 'line',
+      data: {
+        labels: ['Reels', 'Stories', 'Live'],
+        datasets: [
+          {
+            label: 'Views',
+            data: [safeNumber(data.reel_views), safeNumber(data.impressions), safeNumber(data.live_views)],
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13,110,253,0.1)',
+            tension: 0.3,
+          },
+          {
+            label: 'Reach',
+            data: [safeNumber(data.reach), safeNumber(data.reach), safeNumber(data.reach)],
+            borderColor: '#20c997',
+            backgroundColor: 'rgba(32,201,151,0.1)',
+            tension: 0.3,
+          },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } },
+    });
+
+    upsertChart('revenueChart', {
+      type: 'doughnut',
+      data: {
+        labels: ['Payouts', 'Platform fees'],
+        datasets: [
+          {
+            data: [safeNumber(data.revenue) / 100, safeNumber(data.platform_fees) / 100],
+            backgroundColor: ['#198754', '#ffc107'],
+          },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+    });
+
+    upsertChart('engagementChart', {
+      type: 'bar',
+      data: {
+        labels: ['Engagement rate', 'Follower growth', 'Live views'],
+        datasets: [
+          {
+            label: 'Performance',
+            data: [safeNumber(data.engagement_rate) * 100, safeNumber(data.follower_growth), safeNumber(data.live_views)],
+            backgroundColor: ['#0dcaf0', '#6610f2', '#6f42c1'],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+
+    buildAudienceTable(data.audience);
+  }
+
+  function renderContent(content) {
+    const reels = content.reels || [];
+    const posts = content.posts || [];
+    const reelBody = document.getElementById('reelTableBody');
+    const postBody = document.getElementById('postTableBody');
+
+    if (reelBody) {
+      reelBody.innerHTML = reels.length
+        ? reels
+            .sort((a, b) => safeNumber(b.views) - safeNumber(a.views))
+            .slice(0, 6)
+            .map((r) => {
+              const watch = r.watch_time ? `${Math.round(r.watch_time)}s` : '—';
+              return `<tr><td>${r.caption || 'Untitled'}</td><td class="text-end">${formatNumber(safeNumber(r.views))}</td><td class="text-end">${formatPercent(r.engagement_rate)}</td><td class="text-end">${watch}</td></tr>`;
+            })
+            .join('')
+        : '<tr><td colspan="4" class="text-muted">No reels yet</td></tr>';
+    }
+
+    if (postBody) {
+      postBody.innerHTML = posts.length
+        ? posts
+          .sort((a, b) => safeNumber(b.engagement_rate) - safeNumber(a.engagement_rate))
+            .slice(0, 6)
+            .map((p) => `<tr><td>${p.caption || 'Untitled'}</td><td class="text-end">${formatPercent(p.engagement_rate)}</td></tr>`)
+            .join('')
+        : '<tr><td colspan="2" class="text-muted">No posts yet</td></tr>';
+    }
+
+    const bestReel = reels.length ? reels.reduce((top, item) => (safeNumber(item.engagement_rate) > safeNumber(top?.engagement_rate || 0) ? item : top), null) : null;
+    const bestPost = posts.length ? posts.reduce((top, item) => (safeNumber(item.engagement_rate) > safeNumber(top?.engagement_rate || 0) ? item : top), null) : null;
+
+    setText('bestReel', bestReel ? `${bestReel.caption || 'Untitled'} · ${formatPercent(bestReel.engagement_rate)}` : 'No reels yet');
+    setText('bestPost', bestPost ? `${bestPost.caption || 'Untitled'} · ${formatPercent(bestPost.engagement_rate)}` : 'No posts yet');
+  }
+
+  function renderAds(ads) {
+    const impressions = safeNumber(ads.impressions);
+    const clicks = safeNumber(ads.clicks);
+    setText('adsImpressions', formatNumber(impressions));
+    setText('adsClicks', formatNumber(clicks));
+    const ctr = impressions ? `${((clicks || 0) / impressions * 100).toFixed(2)}%` : '0%';
+    setText('adsCTR', ctr);
+    setText('adsEarnings', formatCurrency(ads.earnings));
+    const fees = formatCurrency(ads.platform_fees);
+
+    upsertChart('adsChart', {
+      type: 'bar',
+      data: {
+        labels: ['Impressions', 'Clicks', 'Earnings', 'Platform fees'],
+        datasets: [
+          {
+            label: 'Ad performance',
+            data: [impressions, clicks, safeNumber(ads.earnings) / 100, safeNumber(ads.platform_fees) / 100],
+            backgroundColor: ['#0d6efd', '#20c997', '#198754', '#ffc107'],
+          },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    });
+
+    campaignStatus.textContent = `Earnings ${formatCurrency(ads.earnings)} · Fees ${fees}`;
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Request failed');
+    return res.json();
+  }
+
+  async function loadDashboard() {
+    const params = `?start=${startInput.value}&end=${endInput.value}`;
+    try {
+      const [insights, content, ads, latestCampaign, campaigns] = await Promise.all([
+        fetchJson(`${endpoints.insights}${params}`),
+        fetchJson(endpoints.content),
+        fetchJson(endpoints.ads),
+        fetchJson(endpoints.latestCampaign),
+        fetchJson(endpoints.campaigns),
+      ]);
+      renderInsights(insights);
+      renderContent(content);
+      renderAds(ads);
+      if (latestCampaign && Object.keys(latestCampaign).length) {
+        showCampaignSummary(latestCampaign);
+      }
+      renderCampaigns(campaigns);
+    } catch (err) {
+      console.error(err);
+      if (alertBox) {
+        alertBox.classList.remove('d-none', 'alert-success');
+        alertBox.classList.add('alert-danger');
+        alertBox.textContent = 'Unable to load analytics right now. Please retry.';
+      }
+    }
+  }
+
+  function setDefaultRange() {
+    const today = new Date();
+    const start = new Date();
+    start.setDate(today.getDate() - 28);
+    startInput.value = start.toISOString().slice(0, 10);
+    endInput.value = today.toISOString().slice(0, 10);
+    rangeLabel.textContent = `${startInput.value} → ${endInput.value}`;
+    const startCampaign = document.getElementById('campaignStart');
+    const endCampaign = document.getElementById('campaignEnd');
+    if (startCampaign && endCampaign) {
+      startCampaign.value = today.toISOString().slice(0, 10);
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 7);
+      endCampaign.value = endDate.toISOString().slice(0, 10);
+    }
+  }
+
+  async function submitCampaign(event) {
+    event.preventDefault();
+    if (!alertBox) return;
+    alertBox.className = 'alert alert-info';
+    alertBox.textContent = 'Creating campaign...';
+    alertBox.classList.remove('d-none');
+    if (paymentBox) paymentBox.style.display = 'none';
+    if (payStatus) payStatus.textContent = '';
+
+    const payload = {
+      name: document.getElementById('campaignName').value,
+      post_id: document.getElementById('postId').value,
+      budget: document.getElementById('budget').value,
+      start_date: document.getElementById('campaignStart').value,
+      end_date: document.getElementById('campaignEnd').value,
+      target_audience: {},
+    };
+
+    const audienceHint = document.getElementById('campaignAudience').value.trim();
+    if (audienceHint) {
+      payload.target_audience.hint = audienceHint;
+    }
+
+    try {
+      const res = await fetch(endpoints.createCampaign, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to create');
+      alertBox.className = 'alert alert-success';
+      alertBox.textContent = `Campaign created. Order ${data.order.id || 'pending'} is ready.`;
+      campaignStatus.textContent = 'Campaign created · awaiting payment';
+      if (paymentBox && data.order) {
+        paymentBox.style.display = 'block';
+        orderIdLabel.textContent = data.order.id || 'Pending';
+        setOrderDisplay(data.order);
+        payWarning.style.display = razorpayKey ? 'none' : 'block';
+        payButton.disabled = !razorpayKey;
+        payButton.onclick = () => initiatePayment(data.order);
+        showCampaignSummary(data.order);
+      }
+    } catch (err) {
+      alertBox.className = 'alert alert-danger';
+      alertBox.textContent = err.message || 'Could not create campaign';
+    }
+  }
+
+  function initiatePayment(order) {
+    if (!razorpayKey || !order?.id) {
+      if (payStatus) payStatus.textContent = 'Payment key missing. Contact support.';
+      return;
+    }
+    const opts = {
+      key: razorpayKey,
+      amount: order.amount,
+      currency: order.currency || 'INR',
+      name: 'Boost Campaign',
+      description: order.notes?.purpose || 'Campaign payment',
+      order_id: order.id,
+      method: { card: true, upi: true, wallet: true, netbanking: true },
+      redirect: true,
+      callback_url: '{{ url_for('business.ads_callback', _external=True) }}',
+      target: '_self',
+      notes: {
+        ...order.notes,
+        order_id: order.id,
+      },
+      prefill: {},
+      theme: { color: '#0d6efd' },
+      modal: {
+        backdropclose: false,
+        escape: false,
+        confirm_close: true,
+        ondismiss: function () {
+          if (payStatus) payStatus.textContent = 'Payment dismissed';
+          payButton.disabled = false;
+        },
+      },
+      handler: function () {
+        campaignStatus.textContent = 'Payment submitted. Awaiting confirmation.';
+        if (alertBox) {
+          alertBox.className = 'alert alert-success';
+          alertBox.textContent = 'Payment submitted. If not auto-completed, check Razorpay dashboard.';
+        }
+        if (payStatus) payStatus.textContent = 'Payment submitted.';
+      },
+    };
+
+    payButton.disabled = true;
+    if (payStatus) payStatus.textContent = 'Opening secure checkout...';
+    const rzp = new Razorpay(opts);
+    rzp.on('payment.failed', function (response) {
+      payButton.disabled = false;
+      const msg = response.error?.description || 'Payment failed. Please try again.';
+      if (alertBox) {
+        alertBox.className = 'alert alert-danger';
+        alertBox.textContent = msg;
+      }
+      if (payStatus) payStatus.textContent = msg;
+      alert(msg);
+    });
+    rzp.open();
+    if (payStatus) payStatus.textContent = 'Complete the payment in the Razorpay popup...';
+  }
+
+  document.getElementById('dateForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    loadDashboard();
+  });
+
+  document.getElementById('campaignForm').addEventListener('submit', submitCampaign);
+
+  setDefaultRange();
+  loadDashboard();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Email{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Comms</p>
+    <h2 class="fw-bold text-dark mb-0">Email Console</h2>
+    <p class="text-muted mb-0">Preview templates and send test messages.</p>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0 text-dark">Preview Template</h5>
+        <span class="badge bg-secondary">/email/preview</span>
+      </div>
+      <form id="previewForm" class="row g-2 mb-3">
+        <div class="col-12">
+          <label class="form-label small">Template path</label>
+          <input class="form-control" name="template" value="auth/email_verification" required>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-primary" type="submit">Render preview</button>
+        </div>
+      </form>
+      <div id="previewPane" class="border rounded-3 p-3 bg-white" style="min-height:260px; overflow:auto;">
+        <p class="text-muted mb-0">Preview will appear here.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0 text-dark">Send Test Email</h5>
+        <span class="badge bg-secondary">/email/test</span>
+      </div>
+      <form id="sendForm" class="row g-2">
+        <div class="col-12">
+          <label class="form-label small">Recipient</label>
+          <input class="form-control" name="to" type="email" placeholder="admin@example.com" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small">Template path</label>
+          <input class="form-control" name="template" value="auth/email_verification" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label small">Subject</label>
+          <input class="form-control" name="subject" value="Test Email">
+        </div>
+        <div class="col-12">
+          <label class="form-label small">Context (JSON)</label>
+          <textarea class="form-control" name="context" rows="4">{"user": {"name": "Test User"}, "cta_url": "https://example.com"}</textarea>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-success" type="submit">Send email</button>
+        </div>
+      </form>
+      <div id="sendStatus" class="text-muted small mt-2"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const previewForm = document.getElementById('previewForm');
+  const previewPane = document.getElementById('previewPane');
+  const sendForm = document.getElementById('sendForm');
+  const sendStatus = document.getElementById('sendStatus');
+
+  previewForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const template = e.target.template.value.trim();
+    previewPane.innerHTML = '<p class="text-muted mb-0">Loading preview...</p>';
+    try {
+      const res = await fetch(`/admin/email/preview?template=${encodeURIComponent(template)}`);
+      const html = await res.text();
+      previewPane.innerHTML = html;
+    } catch (err) {
+      previewPane.innerHTML = `<p class="text-danger">Failed to load preview: ${err}</p>`;
+    }
+  });
+
+  sendForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    sendStatus.textContent = 'Sending...';
+    const form = e.target;
+    let context;
+    try {
+      context = JSON.parse(form.context.value || '{}');
+    } catch (err) {
+      sendStatus.textContent = 'Context JSON invalid';
+      sendStatus.classList.add('text-danger');
+      return;
+    }
+    const payload = {
+      to: form.to.value,
+      template: form.template.value,
+      subject: form.subject.value,
+      context,
+    };
+    try {
+      const resp = await fetch('/admin/email/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) throw new Error('Send failed');
+      sendStatus.textContent = 'Test email sent';
+      sendStatus.classList.remove('text-danger');
+    } catch (err) {
+      sendStatus.textContent = err.message;
+      sendStatus.classList.add('text-danger');
+    }
+  });
+})();
+</script>
+{% endblock %}

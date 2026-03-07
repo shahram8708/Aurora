@@ -1,0 +1,578 @@
+{% extends 'base.html' %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<div class="row g-3" id="inbox-view" data-inbox="1">
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <h5 class="mb-0 d-flex align-items-center gap-2"><i class="bi bi-chat-dots-fill text-primary"></i><span>Conversations</span></h5>
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" href="{{ url_for('messaging.requests_page') }}">
+              <i class="bi bi-envelope-open"></i><span>Requests ({{ requests|length }})</span>
+            </a>
+            <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" type="button" data-bs-toggle="modal" data-bs-target="#newDirectModal">
+              <i class="bi bi-send-fill"></i><span>New chat</span>
+            </button>
+            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" type="button" data-bs-toggle="modal" data-bs-target="#newGroupModal">
+              <i class="bi bi-people-fill"></i><span>New group</span>
+            </button>
+          </div>
+        </div>
+        <div class="list-group flex-grow-1 overflow-auto" style="max-height: 70vh;">
+          {% for item in convos %}
+          {% set c = item.convo %}
+          {% set meta = item.meta %}
+          <a class="list-group-item list-group-item-action convo-link" href="{{ url_for('messaging.view_conversation', conversation_id=c.id) }}" data-conversation-id="{{ c.id }}">
+            <div class="d-flex w-100 justify-content-between">
+              <h6 class="mb-1">{{ meta.display_name }}</h6>
+              <small class="text-muted">{{ c.last_message_at.strftime('%b %d %H:%M') if c.last_message_at else '' }}</small>
+            </div>
+            {% if meta.other_user_id %}
+            <small class="text-muted">@{{ meta.other_username }}</small>
+            {% else %}
+            <small class="text-muted">{{ meta.subtitle }}</small>
+            {% endif %}
+          </a>
+          {% else %}
+          <div class="text-muted small">No conversations yet</div>
+          {% endfor %}
+        </div>
+        <div class="mt-3">
+          <button
+            id="broadcast-channel-btn"
+            class="btn w-100 btn-primary"
+            type="button"
+            data-endpoint="{{ url_for('broadcast.create_channel_route') }}"
+            data-list-endpoint="{{ url_for('broadcast.list_channels_route') }}"
+            data-list-all-endpoint="{{ url_for('broadcast.list_all_channels_route') }}"
+            data-subscribe-template="/broadcast/channels/{id}/subscribe"
+            data-unsubscribe-template="/broadcast/channels/{id}/unsubscribe"
+            data-messages-template="/broadcast/channels/{id}/messages"
+          >
+            Broadcast Channels
+          </button>
+          <div class="mt-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">My Channels</h6>
+              <small class="text-muted" id="broadcast-channel-count"></small>
+            </div>
+            <div id="broadcast-channel-list" class="list-group mt-2" style="max-height: 200px; overflow:auto;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8 d-none d-md-block">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="mb-0" id="channel-title">Select a channel</h5>
+            <small class="text-muted" id="channel-subtitle">Join to see updates</small>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" id="channel-join-btn" hidden>Join</button>
+            <button class="btn btn-outline-light btn-sm" id="channel-leave-btn" hidden>Leave</button>
+          </div>
+        </div>
+        <div class="border rounded p-3 mb-3" style="min-height: 240px; max-height: 55vh; overflow:auto;" id="channel-messages">
+          <div class="text-muted">No channel selected</div>
+        </div>
+        <form id="channel-send-form" class="d-flex gap-2" hidden>
+          <input type="text" class="form-control" id="channel-send-input" placeholder="Share an update" maxlength="500">
+          <button class="btn btn-primary" type="submit">Send</button>
+        </form>
+        <div class="mt-4">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">Discover Channels</h6>
+            <button class="btn btn-link btn-sm" type="button" id="refresh-channels">Refresh</button>
+          </div>
+          <div id="discover-channel-list" class="list-group" style="max-height: 24vh; overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start new chat modal -->
+  <div class="modal fade" id="newDirectModal" tabindex="-1" aria-labelledby="newDirectLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="new-direct-form" data-endpoint="{{ url_for('messaging.direct_conversation') }}" data-view-template="/messaging/conversations/{id}/view">
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center gap-2" id="newDirectLabel"><i class="bi bi-send"></i><span>Start new chat</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label for="direct-username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="direct-username" name="username" placeholder="e.g. alex" required>
+            <div class="form-text">Enter the username. Private accounts require mutual follow to start chatting; public and professional accounts are open.</div>
+            <div class="text-danger small d-none" id="direct-error"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+              <i class="bi bi-send-fill"></i><span>Start chat</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create group modal -->
+  <div class="modal fade" id="newGroupModal" tabindex="-1" aria-labelledby="newGroupLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="new-group-form" data-endpoint="{{ url_for('messaging.group_conversation') }}" data-view-template="/messaging/conversations/{id}/view">
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center gap-2" id="newGroupLabel"><i class="bi bi-people"></i><span>Create group</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="group-title" class="form-label">Group name</label>
+              <input type="text" class="form-control" id="group-title" name="title" placeholder="Project squad" required>
+            </div>
+            <div class="mb-2">
+              <label for="group-members" class="form-label">Usernames or IDs</label>
+              <input type="text" class="form-control" id="group-members" name="member_ids" placeholder="Comma separated usernames or IDs, e.g. alex,12,jo" required>
+              <div class="form-text">You are added automatically. You can mix usernames and numeric IDs.</div>
+            </div>
+            <div class="text-danger small d-none" id="group-error"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+              <i class="bi bi-people-fill"></i><span>Create group</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    const btn = document.getElementById('broadcast-channel-btn');
+    if (!btn) return;
+
+    const endpoint = btn.dataset.endpoint;
+    const listEndpoint = btn.dataset.listEndpoint;
+    const listAllEndpoint = btn.dataset.listAllEndpoint;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const listEl = document.getElementById('broadcast-channel-list');
+    const countEl = document.getElementById('broadcast-channel-count');
+    const discoverEl = document.getElementById('discover-channel-list');
+    const refreshBtn = document.getElementById('refresh-channels');
+    const joinTemplate = btn.dataset.subscribeTemplate;
+    const leaveTemplate = btn.dataset.unsubscribeTemplate;
+    const messagesTemplate = btn.dataset.messagesTemplate;
+    const directForm = document.getElementById('new-direct-form');
+    const groupForm = document.getElementById('new-group-form');
+    const directError = document.getElementById('direct-error');
+    const groupError = document.getElementById('group-error');
+    const setBusy = (btnEl, text) => {
+      if (!btnEl) return () => {};
+      const original = btnEl.innerHTML;
+      btnEl.disabled = true;
+      btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>${text}</span>`;
+      return () => {
+        btnEl.disabled = false;
+        btnEl.innerHTML = original;
+      };
+    };
+    const titleEl = document.getElementById('channel-title');
+    const subtitleEl = document.getElementById('channel-subtitle');
+    const joinBtn = document.getElementById('channel-join-btn');
+    const leaveBtn = document.getElementById('channel-leave-btn');
+    const messagesEl = document.getElementById('channel-messages');
+    const sendForm = document.getElementById('channel-send-form');
+    const sendInput = document.getElementById('channel-send-input');
+    const sendBtn = sendForm?.querySelector('button[type="submit"]');
+
+    let currentChannel = null;
+    const channelMeta = new Map();
+    let pollTimer = null;
+
+    const makeUrl = (template, id) => template.replace('{id}', id);
+
+    const scrollToBottom = () => {
+      if (!messagesEl) return;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
+
+    const renderChannels = (channels) => {
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      if (!channels.length) {
+        listEl.innerHTML = '<div class="text-muted small">No channels yet</div>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+      channels.forEach((c) => {
+        // ensure meta map knows this channel (owned or joined implies subscribed)
+        channelMeta.set(c.id, {
+          ...c,
+          is_subscribed: true,
+        });
+        const item = document.createElement('a');
+        item.className = 'list-group-item list-group-item-action';
+        item.href = '#';
+        item.textContent = `${c.name}${c.is_owner ? ' (owner)' : ''}`;
+        item.title = c.description || '';
+        item.dataset.channelId = c.id;
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          selectChannel(c.id);
+        });
+        listEl.appendChild(item);
+      });
+      if (countEl) countEl.textContent = `${channels.length} total`;
+    };
+
+    const fetchChannels = async () => {
+      if (!listEndpoint || !listEl) return;
+      listEl.innerHTML = '<div class="text-muted small">Loading...</div>';
+      try {
+        const resp = await fetch(listEndpoint, { credentials: 'include' });
+        const data = await resp.json().catch(() => []);
+        if (!resp.ok) throw new Error('Failed to load channels');
+        const arr = Array.isArray(data) ? data : [];
+        arr.forEach((c) => {
+          channelMeta.set(c.id, {
+            ...c,
+            is_subscribed: true,
+          });
+        });
+        renderChannels(arr);
+      } catch (err) {
+        listEl.innerHTML = `<div class="text-danger small">${err.message || 'Error loading channels'}</div>`;
+      }
+    };
+
+    const renderDiscover = (channels) => {
+      if (!discoverEl) return;
+      discoverEl.innerHTML = '';
+      if (!channels.length) {
+        discoverEl.innerHTML = '<div class="text-muted small">No channels found</div>';
+        return;
+      }
+      channels.forEach((c) => {
+        channelMeta.set(c.id, c);
+        const row = document.createElement('div');
+        row.className = 'list-group-item d-flex justify-content-between align-items-center';
+        const info = document.createElement('div');
+        info.innerHTML = `<div class="fw-semibold">${c.name}</div><div class="text-muted small">${c.subscriber_count || 0} followers${c.is_owner ? ' • You are owner' : ''}</div>`;
+        const actions = document.createElement('div');
+        const openBtn = document.createElement('button');
+        openBtn.className = 'btn btn-sm btn-outline-light me-2';
+        openBtn.textContent = 'Open';
+        openBtn.addEventListener('click', () => selectChannel(c.id));
+        actions.appendChild(openBtn);
+        const joinLeave = document.createElement('button');
+        joinLeave.className = c.is_subscribed ? 'btn btn-sm btn-outline-danger' : 'btn btn-sm btn-primary';
+        joinLeave.textContent = c.is_subscribed ? 'Leave' : 'Join';
+        joinLeave.addEventListener('click', async () => {
+          joinLeave.disabled = true;
+          try {
+            const url = c.is_subscribed ? makeUrl(leaveTemplate, c.id) : makeUrl(joinTemplate, c.id);
+            const resp = await fetch(url, { method: 'POST', credentials: 'include', headers: csrf ? { 'X-CSRF-Token': csrf } : {} });
+            if (!resp.ok) throw new Error('Failed');
+            c.is_subscribed = !c.is_subscribed;
+            joinLeave.className = c.is_subscribed ? 'btn btn-sm btn-outline-danger' : 'btn btn-sm btn-primary';
+            joinLeave.textContent = c.is_subscribed ? 'Leave' : 'Join';
+            fetchChannels();
+          } catch (err) {
+            alert(err.message || 'Could not update subscription');
+          } finally {
+            joinLeave.disabled = false;
+          }
+        });
+        actions.appendChild(joinLeave);
+        row.appendChild(info);
+        row.appendChild(actions);
+        discoverEl.appendChild(row);
+      });
+    };
+
+    const fetchDiscover = async () => {
+      if (!listAllEndpoint || !discoverEl) return;
+      discoverEl.innerHTML = '<div class="text-muted small">Loading...</div>';
+      try {
+        const resp = await fetch(listAllEndpoint, { credentials: 'include' });
+        const data = await resp.json().catch(() => []);
+        if (!resp.ok) throw new Error('Failed to load channels');
+        const arr = Array.isArray(data) ? data : [];
+        renderDiscover(arr);
+      } catch (err) {
+        discoverEl.innerHTML = `<div class="text-danger small">${err.message || 'Error loading channels'}</div>`;
+      }
+    };
+
+    const renderMessages = (messages) => {
+      messagesEl.innerHTML = '';
+      if (!messages.length) {
+        messagesEl.innerHTML = '<div class="text-muted">No updates yet</div>';
+        return;
+      }
+      // oldest first for chat-like feel
+      [...messages].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((m) => {
+        const item = document.createElement('div');
+        item.className = 'mb-3';
+        const stamp = m.created_at ? new Date(m.created_at).toLocaleString() : '';
+        item.innerHTML = `<div class="fw-semibold">${m.content}</div><div class="text-muted small">${stamp}</div>`;
+        messagesEl.appendChild(item);
+      });
+      scrollToBottom();
+    };
+
+    const fetchMessages = async (channelId, { silent = false } = {}) => {
+      if (!channelId) return;
+      if (!silent) messagesEl.innerHTML = '<div class="text-muted">Loading messages...</div>';
+      try {
+        const url = makeUrl(messagesTemplate, channelId);
+        const resp = await fetch(url, { credentials: 'include' });
+        const data = await resp.json().catch(() => []);
+        if (!resp.ok) throw new Error('Failed to load messages');
+        renderMessages(Array.isArray(data) ? data : []);
+      } catch (err) {
+        messagesEl.innerHTML = `<div class="text-danger">${err.message || 'Error loading messages'}</div>`;
+      }
+    };
+
+    const updateChannelHeader = (meta) => {
+      const isOwner = !!meta?.is_owner;
+      const isSub = !!meta?.is_subscribed;
+      titleEl.textContent = meta?.name || 'Select a channel';
+      subtitleEl.textContent = meta ? (meta.description || 'Broadcast updates') : 'Join to see updates';
+      joinBtn.hidden = !meta || isSub || isOwner;
+      leaveBtn.hidden = !meta || (!isSub && !isOwner);
+      sendForm.hidden = !isOwner;
+      if (sendInput) {
+        sendInput.disabled = !isOwner;
+        if (!isOwner) sendInput.value = '';
+      }
+      if (sendBtn) sendBtn.disabled = !isOwner;
+    };
+
+    const selectChannel = (channelId) => {
+      const meta = channelMeta.get(channelId) || null;
+      currentChannel = channelId;
+      updateChannelHeader(meta);
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(() => fetchMessages(channelId, { silent: true }), 5000);
+      joinBtn.onclick = async () => {
+        try {
+          joinBtn.disabled = true;
+          const url = makeUrl(joinTemplate, channelId);
+          const resp = await fetch(url, { method: 'POST', credentials: 'include', headers: csrf ? { 'X-CSRF-Token': csrf } : {} });
+          if (!resp.ok) throw new Error('Join failed');
+          if (meta) meta.is_subscribed = true;
+          updateChannelHeader(meta);
+          fetchChannels();
+          fetchDiscover();
+          fetchMessages(channelId);
+        } catch (err) {
+          alert(err.message || 'Could not join');
+        } finally {
+          joinBtn.disabled = false;
+        }
+      };
+      leaveBtn.onclick = async () => {
+        try {
+          leaveBtn.disabled = true;
+          const url = makeUrl(leaveTemplate, channelId);
+          const resp = await fetch(url, { method: 'POST', credentials: 'include', headers: csrf ? { 'X-CSRF-Token': csrf } : {} });
+          if (!resp.ok) throw new Error('Leave failed');
+          if (meta) meta.is_subscribed = false;
+          updateChannelHeader(meta);
+          fetchChannels();
+          fetchDiscover();
+          messagesEl.innerHTML = '<div class="text-muted">Join to view updates</div>';
+        } catch (err) {
+          alert(err.message || 'Could not leave');
+        } finally {
+          leaveBtn.disabled = false;
+        }
+      };
+      fetchMessages(channelId);
+    };
+
+    if (sendForm) {
+      sendForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentChannel) return;
+        const meta = channelMeta.get(currentChannel);
+        if (!meta?.is_owner) {
+          alert('Only the creator can post to this channel.');
+          return;
+        }
+        const content = (sendInput.value || '').trim();
+        if (!content) return;
+        sendInput.disabled = true;
+        if (sendBtn) sendBtn.disabled = true;
+        try {
+          const url = makeUrl(messagesTemplate, currentChannel);
+          const resp = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({ content }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.error) throw new Error(data.error || 'Send failed');
+          sendInput.value = '';
+          fetchMessages(currentChannel);
+        } catch (err) {
+          alert(err.message || 'Could not send update');
+        } finally {
+          sendInput.disabled = false;
+          if (sendBtn) sendBtn.disabled = false;
+        }
+      });
+    }
+
+    if (directForm) {
+      const directSubmit = directForm.querySelector('button[type="submit"]');
+      const viewTemplate = directForm.dataset.viewTemplate || '/messaging/conversations/{id}/view';
+      directForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (directError) {
+          directError.classList.add('d-none');
+          directError.textContent = '';
+        }
+        const username = (directForm.username?.value || '').trim();
+        if (!username) {
+          if (directError) {
+            directError.textContent = 'Username is required.';
+            directError.classList.remove('d-none');
+          }
+          return;
+        }
+        const reset = setBusy(directSubmit, 'Starting...');
+        try {
+          const resp = await fetch(directForm.dataset.endpoint, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({ username }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.conversation_id) {
+            const msg = data.error || 'Could not start chat';
+            throw new Error(msg);
+          }
+          const url = viewTemplate.replace('{id}', data.conversation_id);
+          window.location.href = url;
+        } catch (err) {
+          if (directError) {
+            directError.textContent = err.message || 'Failed to start chat';
+            directError.classList.remove('d-none');
+          }
+        } finally {
+          reset();
+        }
+      });
+    }
+
+    if (groupForm) {
+      const groupSubmit = groupForm.querySelector('button[type="submit"]');
+      const viewTemplate = groupForm.dataset.viewTemplate || '/messaging/conversations/{id}/view';
+      groupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (groupError) {
+          groupError.classList.add('d-none');
+          groupError.textContent = '';
+        }
+        const title = (groupForm.title?.value || '').trim();
+        const membersRaw = (groupForm.member_ids?.value || '').split(',').map((s) => s.trim()).filter(Boolean);
+        if (!title || !membersRaw.length) {
+          if (groupError) {
+            groupError.textContent = 'Group name and at least one username or ID are required.';
+            groupError.classList.remove('d-none');
+          }
+          return;
+        }
+        const reset = setBusy(groupSubmit, 'Creating...');
+        try {
+          const resp = await fetch(groupForm.dataset.endpoint, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({
+              title,
+              member_ids: membersRaw,
+            }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.conversation_id) {
+            const msg = data.error || 'Could not create group';
+            throw new Error(msg);
+          }
+          const url = viewTemplate.replace('{id}', data.conversation_id);
+          window.location.href = url;
+        } catch (err) {
+          if (groupError) {
+            groupError.textContent = err.message || 'Failed to create group';
+            groupError.classList.remove('d-none');
+          }
+        } finally {
+          reset();
+        }
+      });
+    }
+
+    btn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const name = prompt('Enter a broadcast channel name');
+      const channelName = name && name.trim();
+      if (!channelName) return;
+
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = 'Creating...';
+
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+          },
+          body: JSON.stringify({ name: channelName }),
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.error) {
+          const msg = data.error || 'Failed to create channel';
+          throw new Error(msg);
+        }
+
+        alert(`Channel created. ID: ${data.id}`);
+        fetchChannels();
+        fetchDiscover();
+      } catch (err) {
+        alert(err.message || 'Something went wrong while creating the channel.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    });
+
+    fetchChannels();
+    fetchDiscover();
+    if (refreshBtn) refreshBtn.addEventListener('click', fetchDiscover);
+  })();
+</script>
+{% endblock %}

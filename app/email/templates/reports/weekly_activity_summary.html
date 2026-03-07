@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Weekly summary</div>
+  <div class="headline">Your week at a glance</div>
+  <p class="body-text">Hi {{ user.name }}, here is your activity summary for the past week.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">New followers</td><td style="text-align:right;" class="body-text">{{ stats.followers }}</td></tr>
+      <tr><td class="muted">Comments</td><td style="text-align:right;" class="body-text">{{ stats.comments }}</td></tr>
+      <tr><td class="muted">Mentions</td><td style="text-align:right;" class="body-text">{{ stats.mentions }}</td></tr>
+      <tr><td class="muted">Messages</td><td style="text-align:right;" class="body-text">{{ stats.messages }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Open analytics"} %}
+  <p class="muted">We send this digest to keep you informed. Adjust frequency in notification settings.</p>
+{% endblock %}

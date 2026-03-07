@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Saved Posts{% endblock %}
+{% block content %}
+<style>
+  .saved-media-wrap { height: 320px; background: #111; overflow: hidden; border-radius: 0.5rem; }
+  .saved-media { width: 100%; height: 100%; object-fit: cover; display: block; }
+</style>
+<h4 class="mb-3">Saved</h4>
+
+<h6 class="mt-2 mb-2">Reels</h6>
+<div class="row g-3 mb-4">
+  {% if reels and reels|length %}
+    {% for reel in reels %}
+      <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+          <a href="{{ url_for('reels.detail', reel_id=reel.id) }}" class="text-decoration-none">
+            <div class="saved-media-wrap position-relative">
+              {% if reel.thumbnail_url %}
+              <img src="{{ reel.thumbnail_url }}" class="saved-media" alt="Reel thumbnail" loading="lazy">
+              {% else %}
+              <video class="saved-media" preload="metadata" muted poster="{{ reel.video_url }}#t=0.1">
+                <source src="{{ reel.video_url }}" type="video/mp4">
+              </video>
+              {% endif %}
+              <span class="badge bg-dark position-absolute top-0 end-0 m-2">Reel</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <p class="card-text text-truncate">{{ reel.caption or 'Reel' }}</p>
+            <a class="btn btn-sm btn-outline-light" href="{{ url_for('reels.detail', reel_id=reel.id) }}">Open reel</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12">
+      <div class="card"><div class="card-body">No saved reels.</div></div>
+    </div>
+  {% endif %}
+</div>
+
+<h6 class="mt-2 mb-2">Posts</h6>
+<div class="row g-3">
+  {% if posts and posts|length %}
+    {% for post in posts %}
+      <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+          {% if post.media and post.media[0].media_type == 'image' %}
+            <div class="saved-media-wrap">
+              <img src="{{ post.media[0].thumbnail_url or post.media[0].media_url }}" class="saved-media" loading="lazy" alt="saved">
+            </div>
+          {% elif post.media %}
+            <div class="saved-media-wrap">
+              <video class="saved-media" preload="metadata" controls>
+                <source src="{{ post.media[0].media_url }}" type="video/mp4">
+              </video>
+            </div>
+          {% endif %}
+          <div class="card-body">
+            <p class="card-text text-truncate">{{ post.caption }}</p>
+            <a class="btn btn-sm btn-outline-light" href="{{ url_for('feed.home') }}">View in feed</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12">
+      <div class="card"><div class="card-body">No saved posts.</div></div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Create Reel{% endblock %}
+{% block content %}
+<h4 class="mb-3">Create Reel</h4>
+<form method="post" enctype="multipart/form-data" class="card p-3 shadow-sm">
+  {{ form.hidden_tag() }}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Video</label>
+      {{ form.video(class_='form-control', accept='video/mp4') }}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Voiceover</label>
+      {{ form.voiceover(class_='form-control', accept='audio/*') }}
+    </div>
+    <div class="col-md-6">
+      {{ form.caption.label(class_='form-label') }}
+      {{ form.caption(class_='form-control', rows=3) }}
+    </div>
+    <div class="col-md-6">
+      {{ form.music_id.label(class_='form-label') }}
+      {{ form.music_id(class_='form-control') }}
+      <div class="form-text">Optional music library id.</div>
+    </div>
+    <div class="col-md-4">
+      {{ form.speed_factor.label(class_='form-label') }}
+      {{ form.speed_factor(class_='form-control', step='0.1') }}
+    </div>
+    <div class="col-md-4">
+      {{ form.mix_ratio.label(class_='form-label') }}
+      {{ form.mix_ratio(class_='form-control', step='0.05') }}
+    </div>
+    <div class="col-md-4">
+      {{ form.background_image.label(class_='form-label') }}
+      {{ form.background_image(class_='form-control', accept='image/*') }}
+    </div>
+    <div class="col-md-4">{{ form.scheduled_at.label(class_='form-label') }}{{ form.scheduled_at(class_='form-control', type='datetime-local') }}</div>
+    <div class="col-md-4">{{ form.countdown_seconds.label(class_='form-label') }}{{ form.countdown_seconds(class_='form-control') }}</div>
+    <div class="col-md-4">{{ form.filter_id.label(class_='form-label') }}{{ form.filter_id(class_='form-control') }}</div>
+    <div class="col-12 d-flex gap-3">
+      <div class="form-check">{{ form.allow_download(class_='form-check-input') }}{{ form.allow_download.label(class_='form-check-label ms-2') }}</div>
+      <div class="form-check">{{ form.monetization_enabled(class_='form-check-input') }}{{ form.monetization_enabled.label(class_='form-check-label ms-2') }}</div>
+      <div class="form-check">{{ form.is_remix(class_='form-check-input') }}{{ form.is_remix.label(class_='form-check-label ms-2') }}</div>
+      <div class="form-check">{{ form.green_screen_subject_mask(class_='form-check-input') }}{{ form.green_screen_subject_mask.label(class_='form-check-label ms-2') }}</div>
+      <div class="form-check">{{ form.countdown_autostart(class_='form-check-input') }}{{ form.countdown_autostart.label(class_='form-check-label ms-2') }}</div>
+    </div>
+    <div class="col-md-6">{{ form.text_overlays.label(class_='form-label') }}{{ form.text_overlays(class_='form-control', rows=3, placeholder='[{"text":"caption","start":0,"end":3}]') }}</div>
+    <div class="col-md-6">{{ form.effects_metadata.label(class_='form-label') }}{{ form.effects_metadata(class_='form-control', rows=3, placeholder='[{"name":"blur","intensity":0.5}]') }}</div>
+    <div class="col-md-6">{{ form.stickers_metadata.label(class_='form-label') }}{{ form.stickers_metadata(class_='form-control', rows=3, placeholder='[{"type":"text","content":"Hi"}]') }}</div>
+    <div class="col-md-6">{{ form.original_reel_id.label(class_='form-label') }}{{ form.original_reel_id(class_='form-control') }}</div>
+  </div>
+  <div class="mt-3"><button class="btn btn-primary" type="submit">Upload</button></div>
+</form>
+{% endblock %}

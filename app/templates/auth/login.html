@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h3 class="mb-3">Login</h3>
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">{{ form.login.label(class_='form-label') }}{{ form.login(class_='form-control') }}</div>
+          <div class="mb-3">{{ form.password.label(class_='form-label') }}{{ form.password(class_='form-control') }}</div>
+          <div class="form-check mb-3">{{ form.remember(class_='form-check-input') }}{{ form.remember.label(class_='form-check-label ms-2') }}</div>
+          <div class="d-flex justify-content-between align-items-center">
+            {{ form.submit(class_='btn btn-primary') }}
+            <a href="{{ url_for('auth.forgot_password') }}">Forgot?</a>
+          </div>
+        </form>
+        <hr>
+        <a class="btn btn-outline-danger w-100" href="{{ url_for('auth.google_login') }}">Continue with Google</a>
+        <p class="mt-3">No account? <a href="{{ url_for('auth.signup') }}">Sign up</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

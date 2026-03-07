@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">New like</div>
+  <div class="headline">{{ actor or 'Someone' }} liked your post</div>
+  <p class="body-text">Hi {{ user.name }}, your post is getting traction. Keep the momentum with a reply or a new post.</p>
+  <div class="card">
+    <div class="body-text">Post</div>
+    <div class="muted" style="margin-top:4px;">{{ meta.post_preview or 'Open to view full details.' }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "View activity"} %}
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

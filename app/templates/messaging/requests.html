@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Message Requests{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-3">Message Requests</h5>
+    <div class="list-group">
+      {% for c in requests %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">{{ c.title or 'Request' }}</div>
+          <small class="text-muted">{{ c.participants|length }} participants</small>
+        </div>
+        <div class="d-flex gap-2">
+          <form method="post" action="{{ url_for('messaging.accept', conversation_id=c.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-primary" type="submit">Accept</button>
+          </form>
+          <a class="btn btn-sm btn-outline-light" href="{{ url_for('messaging.view_conversation', conversation_id=c.id) }}">View</a>
+        </div>
+      </div>
+      {% else %}
+      <div class="text-muted">No requests</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

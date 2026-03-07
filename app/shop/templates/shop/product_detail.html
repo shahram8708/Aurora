@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4 align-items-start">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body p-0">
+          {% if product.images %}
+          <div id="gallery" class="carousel slide" data-bs-ride="carousel">
+            {% if product.images|length > 1 %}
+            <div class="carousel-indicators">
+              {% for img in product.images %}
+              <button type="button" data-bs-target="#gallery" data-bs-slide-to="{{ loop.index0 }}" class="{% if loop.first %}active{% endif %}" aria-label="Slide {{ loop.index }}"></button>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <div class="carousel-inner rounded">
+              {% for img in product.images %}
+              <div class="carousel-item {% if loop.first %}active{% endif %}">
+                <img src="{{ img.image_url }}" class="d-block w-100" alt="{{ product.title }}">
+              </div>
+              {% endfor %}
+            </div>
+            {% if product.images|length > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#gallery" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+            <button class="carousel-control-next" type="button" data-bs-target="#gallery" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="bg-secondary bg-opacity-10 rounded ratio ratio-1x1 d-flex align-items-center justify-content-center">
+            <span class="text-muted">No images yet</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6 d-flex flex-column gap-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="badge bg-primary-subtle text-primary">{{ product.category or 'General' }}</span>
+            <span class="badge bg-success-subtle text-success">Stock: {{ product.stock_quantity }}</span>
+          </div>
+          <h2 class="mb-1">{{ product.title }}</h2>
+          <p class="text-muted mb-3">{{ product.description }}</p>
+          <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <span class="fs-3 fw-bold mb-0">₹{{ '%.2f' % (product.price/100) }}</span>
+            <div class="d-flex flex-column small text-muted">
+              <span>Currency: {{ product.currency or 'INR' }}</span>
+            </div>
+          </div>
+          <div class="d-grid gap-2 d-sm-flex">
+            <button id="cart-btn" class="btn btn-primary flex-fill" onclick="toggleCart('{{ product.id }}')">{{ 'Remove from cart' if in_cart else 'Add to cart' }}</button>
+            <button id="wish-btn" class="btn btn-outline-danger flex-fill" onclick="toggleWishlist('{{ product.id }}')">{{ 'Remove from wishlist' if in_wishlist else 'Wishlist' }}</button>
+          </div>
+          <div class="mt-2">
+            <small class="text-muted">Razorpay secure checkout</small>
+          </div>
+        </div>
+      </div>
+
+      {% if tagged_posts %}
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">Featured in posts</h5>
+            <span class="badge bg-light text-muted">{{ tagged_posts|length }}</span>
+          </div>
+          <div class="row row-cols-1 row-cols-md-2 g-3">
+            {% for post in tagged_posts %}
+            {% set media = post.media[0] if post.media else None %}
+            <div class="col">
+              <a class="text-decoration-none" href="{{ url_for('posts.view_post', post_id=post.id) }}">
+                <div class="card h-100 border-0 shadow-sm">
+                  {% if media %}
+                  <div class="ratio ratio-16x9">
+                    <img src="{{ media.thumbnail_url or media.media_url }}" class="img-fluid rounded-top" alt="{{ media.alt_text or (post.caption or 'Post media') }}">
+                  </div>
+                  {% endif %}
+                  <div class="card-body">
+                    <p class="card-text text-truncate mb-1">{{ post.caption or 'View post' }}</p>
+                    <small class="text-muted">{{ post.created_at.strftime('%b %d, %Y') }}</small>
+                  </div>
+                </div>
+              </a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_owner %}
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h6 class="mb-1">Manage this listing</h6>
+              <small class="text-muted">Update, delete, or retag</small>
+            </div>
+            <span class="badge bg-light text-dark border">Owner</span>
+          </div>
+          <form id="edit-form" class="row g-2" enctype="multipart/form-data">
+            <div class="col-12">
+              <label class="form-label">Title</label>
+              <input class="form-control" name="title" value="{{ product.title }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <input class="form-control" name="category" value="{{ product.category }}" placeholder="e.g. Tech, Beauty">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Currency</label>
+              <input class="form-control" name="currency" value="{{ product.currency or 'INR' }}" maxlength="8">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Price (INR)</label>
+              <input type="number" step="0.01" min="0" class="form-control" name="price" value="{{ '%.2f' % (product.price/100) }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Stock</label>
+              <input type="number" min="0" class="form-control" name="stock_quantity" value="{{ product.stock_quantity }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" name="description" rows="3">{{ product.description }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Images</label>
+              <input class="form-control" type="file" name="images" accept="image/*" multiple>
+              <div class="form-text">Upload new images to refresh the gallery.</div>
+            </div>
+          </form>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button type="submit" form="edit-form" class="btn btn-sm btn-primary">Save changes</button>
+            <button id="delete-btn" type="button" class="btn btn-sm btn-outline-danger">Delete product</button>
+          </div>
+          <div id="edit-status" class="small text-muted mt-2"></div>
+          <hr>
+          <form id="tag-form" class="row g-2 align-items-end">
+            <div class="col-12">
+              <label class="form-label mb-0">Tag to an existing post</label>
+              <small class="text-muted d-block">Paste the full post URL (or ID) shoppers will see.</small>
+            </div>
+            <div class="col-md-8 col-12">
+              <input class="form-control" id="tag-post-id" type="text" placeholder="https://social.app/posts/1234" required>
+            </div>
+            <div class="col-md-4 col-12">
+              <button class="btn btn-sm btn-secondary w-100" type="submit">Tag product</button>
+            </div>
+          </form>
+          <div id="tag-status" class="small text-muted mt-2"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  const productId = '{{ product.id }}';
+  let inCart = {{ 'true' if in_cart else 'false' }};
+  let wishlisted = {{ 'true' if in_wishlist else 'false' }};
+  const editForm = document.getElementById('edit-form');
+  const editStatus = document.getElementById('edit-status');
+  const editSubmitBtn = document.querySelector('button[form="edit-form"][type="submit"]');
+  const deleteBtn = document.getElementById('delete-btn');
+  const tagForm = document.getElementById('tag-form');
+  const tagStatus = document.getElementById('tag-status');
+
+  async function toggleCart(productId){
+    const headers = {'Content-Type':'application/json'};
+    if(csrfToken){ headers['X-CSRFToken'] = csrfToken; headers['X-CSRF-Token'] = csrfToken; }
+    const btn = document.getElementById('cart-btn');
+    btn.disabled = true;
+    try {
+      if(!inCart){
+        const res = await fetch('/commerce/cart/add', {method:'POST', headers, body:JSON.stringify({product_id:productId, quantity:1})});
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || 'Failed');
+        inCart = true;
+        btn.textContent = 'Remove from cart';
+        alert('Added to cart');
+      } else {
+        const res = await fetch('/commerce/cart/remove', {method:'POST', headers, body:JSON.stringify({product_id:productId})});
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || 'Failed');
+        inCart = false;
+        btn.textContent = 'Add to cart';
+        alert('Removed from cart');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  async function toggleWishlist(productId){
+    const headersW = {};
+    if(csrfToken){ headersW['X-CSRFToken'] = csrfToken; headersW['X-CSRF-Token'] = csrfToken; }
+    const btn = document.getElementById('wish-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/shop/products/${productId}/wishlist`, {method:'POST', headers: headersW});
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Failed');
+      wishlisted = data.added;
+      btn.textContent = data.added ? 'Remove from wishlist' : 'Wishlist';
+      alert(data.added ? 'Saved' : 'Removed');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function setStatus(el, msg, isError=false){
+    if(!el) return;
+    el.textContent = msg;
+    el.className = 'small mt-2 ' + (isError ? 'text-danger' : 'text-muted');
+  }
+
+  function withCsrf(headers){
+    if(csrfToken){
+      headers['X-CSRFToken'] = csrfToken;
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+    return headers;
+  }
+
+  function extractPostId(input){
+    if(!input) return '';
+    const trimmed = input.trim();
+    // Try to grab a UUID-like token from the string (post URL or raw ID)
+    const uuidMatch = trimmed.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/);
+    if(uuidMatch) return uuidMatch[0];
+    // Fallback: last path segment for non-UUID URLs
+    try {
+      const asUrl = new URL(trimmed);
+      const segments = asUrl.pathname.split('/').filter(Boolean);
+      return segments.pop() || trimmed;
+    } catch (e) {
+      return trimmed;
+    }
+  }
+
+  editForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setStatus(editStatus, 'Saving...');
+    editSubmitBtn?.setAttribute('disabled', 'disabled');
+    try {
+      const fd = new FormData(editForm);
+      const priceInr = parseFloat(fd.get('price') || '0');
+      fd.set('price', Math.round(priceInr * 100));
+      const res = await fetch(`/shop/products/${productId}/edit`, {
+        method: 'POST',
+        headers: withCsrf({}),
+        body: fd,
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Failed to update');
+      setStatus(editStatus, 'Updated. Reloading...');
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      setStatus(editStatus, err.message || 'Update failed', true);
+    } finally {
+      editSubmitBtn?.removeAttribute('disabled');
+    }
+  });
+
+  deleteBtn?.addEventListener('click', async () => {
+    if(!confirm('Delete this product?')) return;
+    deleteBtn.setAttribute('disabled', 'disabled');
+    setStatus(editStatus, 'Deleting...');
+    try {
+      const res = await fetch(`/shop/products/${productId}/delete`, {
+        method: 'POST',
+        headers: withCsrf({}),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Delete failed');
+      setStatus(editStatus, 'Deleted. Redirecting...');
+      setTimeout(() => window.location = '/shop', 400);
+    } catch (err) {
+      setStatus(editStatus, err.message || 'Delete failed', true);
+      deleteBtn.removeAttribute('disabled');
+    }
+  });
+
+  tagForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const postInput = document.getElementById('tag-post-id')?.value || '';
+    const postId = extractPostId(postInput);
+    if(!postId){
+      setStatus(tagStatus, 'Post URL or ID required', true);
+      return;
+    }
+    setStatus(tagStatus, 'Tagging...');
+    try {
+      const res = await fetch(`/shop/products/${productId}/tag`, {
+        method: 'POST',
+        headers: withCsrf({'Content-Type':'application/json'}),
+        body: JSON.stringify({post_id: postId}),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Tag failed');
+      setStatus(tagStatus, 'Tagged to post successfully');
+    } catch (err) {
+      setStatus(tagStatus, err.message || 'Tag failed', true);
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="row g-3 align-items-stretch">
+  <div class="col-md-4">
+    <div class="card stat-card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted mb-1">Followers</p>
+        <h3 class="mb-0">{{ user.follower_count }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted mb-1">Following</p>
+        <h3 class="mb-0">{{ user.following_count }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card stat-card h-100 shadow-sm">
+      <div class="card-body">
+        <p class="text-muted mb-1">Account Type</p>
+        <h5 class="mb-0">{{ 'Professional' if user.is_professional else 'Personal' }}</h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-4 card shadow-sm">
+  <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h5 class="card-title mb-1">Quick Actions</h5>
+      <p class="text-muted small mb-0">Jump into your most common flows.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-primary" href="{{ url_for('users.profile') }}">View Profile</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('users.edit_profile') }}">Edit Profile</a>
+      <a class="btn btn-outline-info" href="{{ url_for('settings.settings_page') }}">Settings</a>
+      <a class="btn btn-outline-warning" href="{{ url_for('users.safety_center') }}">Safety Center</a>
+    </div>
+  </div>
+</div>
+
+<section class="mt-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-grid-1x2-fill text-primary"></i>
+    <h5 class="mb-0">Navigation Hub</h5>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Home</span>
+            <span class="badge text-bg-light">Core</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('feed.home') }}"><i class="bi bi-newspaper me-2"></i>Feed</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('users.dashboard') }}"><i class="bi bi-speedometer me-2"></i>Dashboard</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('explore.explore_home') }}"><i class="bi bi-compass me-2"></i>Explore</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('explore.explore_search') }}"><i class="bi bi-search me-2"></i>Search</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('notifications.notifications_page') }}"><i class="bi bi-bell me-2"></i>Notifications</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Profile</span>
+            <span class="badge text-bg-light">You</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('users.profile') }}"><i class="bi bi-person-circle me-2"></i>My Profile</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('users.edit_profile') }}"><i class="bi bi-pencil-square me-2"></i>Edit Profile</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_page') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+            <a class="btn btn-outline-warning" href="{{ url_for('users.safety_center') }}"><i class="bi bi-shield-check me-2"></i>Safety Center</a>
+            {% if current_user is defined and current_user.is_authenticated %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('engagement.saved_posts') }}"><i class="bi bi-bookmark-heart me-2"></i>Saved</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Create &amp; Stories</span>
+            <span class="badge text-bg-light">Share</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('posts.create') }}"><i class="bi bi-plus-circle me-2"></i>Create Post</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('stories.list_my') }}"><i class="bi bi-collection-play me-2"></i>My Stories</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('stories.create') }}"><i class="bi bi-camera-video me-2"></i>Create Story</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('stories.highlights') }}"><i class="bi bi-star me-2"></i>Highlights</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('reels.reel_feed') }}"><i class="bi bi-camera-reels me-2"></i>Reels</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Live</span>
+            <span class="badge text-bg-light">Real-time</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('live.create_live_page') }}"><i class="bi bi-broadcast me-2"></i>Go Live</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('live.browse_live') }}"><i class="bi bi-play-btn me-2"></i>Live Now</a>
+            <a class="btn btn-outline-secondary" href="#" id="live-open-link-dashboard"><i class="bi bi-link-45deg me-2"></i>Open by Session ID</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Messaging</span>
+            <span class="badge text-bg-light">DMs</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('messaging.inbox') }}"><i class="bi bi-chat-dots me-2"></i>Inbox</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('messaging.requests_page') }}"><i class="bi bi-envelope-open me-2"></i>Message Requests</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Broadcast</span>
+            <span class="badge text-bg-light">Channels</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('broadcast.broadcast_dashboard') }}"><i class="bi bi-megaphone me-2"></i>Broadcast Hub</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Commerce</span>
+            <span class="badge text-bg-light">Shop</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('shop.catalog') }}"><i class="bi bi-bag me-2"></i>Shop</a>
+            {% if current_user is defined and current_user.is_authenticated %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('commerce.cart_page') }}"><i class="bi bi-cart3 me-2"></i>Cart</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('shop.wishlist_page') }}"><i class="bi bi-heart me-2"></i>Wishlist</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('orders.history') }}"><i class="bi bi-receipt me-2"></i>Orders</a>
+            {% if current_user.is_professional %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('orders.seller_dashboard') }}"><i class="bi bi-shop-window me-2"></i>Seller Dashboard</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('shop.product_new') }}"><i class="bi bi-plus-square me-2"></i>Create Product</a>
+            {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if current_user is defined and current_user.is_authenticated and current_user.is_professional %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Growth</span>
+            <span class="badge text-bg-light">Creator</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('affiliate.dashboard') }}"><i class="bi bi-graph-up-arrow me-2"></i>Affiliate</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('monetization.marketplace_page') }}"><i class="bi bi-people me-2"></i>Creator Marketplace</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('monetization.subscriptions_page') }}"><i class="bi bi-badge-ad me-2"></i>Subscriptions</a>
+            {% if current_user.is_professional %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('business.analytics_dashboard') }}#overview"><i class="bi bi-speedometer2 me-2"></i>Business Hub</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('business.analytics_dashboard') }}#content"><i class="bi bi-collection me-2"></i>Content Performance</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('business.analytics_dashboard') }}#ads"><i class="bi bi-bullseye me-2"></i>Ad Campaigns</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if g is defined and g.get('admin_user') %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-uppercase text-muted fw-semibold">Admin</span>
+            <span class="badge text-bg-light">Control</span>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('admin.admin_panel') }}"><i class="bi bi-shield-lock me-2"></i>Admin Panel</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.list_users') }}"><i class="bi bi-people-fill me-2"></i>Manage Users</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.list_reports') }}"><i class="bi bi-flag me-2"></i>Moderation</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+  (() => {
+    const liveBtn = document.getElementById('live-open-link-dashboard');
+    if (!liveBtn) return;
+    liveBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sessionId = prompt('Enter live session ID');
+      if (sessionId) {
+        window.location.href = `/live/${sessionId}`;
+      }
+    });
+  })();
+</script>
+{% endblock %}

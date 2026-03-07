@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<h4 class="mb-3">Order history</h4>
+<div class="list-group">
+  {% for order in orders %}
+  <div class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Order #{{ order.id }}</div>
+      <div class="text-muted small">Status: {{ order.status }} · ₹{{ '%.2f' % (order.total_amount/100) }}</div>
+      <div class="text-muted small">Placed {{ order.created_at.strftime('%Y-%m-%d') }}</div>
+    </div>
+    <a class="btn btn-outline-primary btn-sm" href="/orders/{{ order.id }}/tracking">Track</a>
+  </div>
+  {% else %}
+  <div class="alert alert-info">No orders yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

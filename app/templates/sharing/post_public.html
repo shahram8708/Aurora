@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ meta['og:title'] }}{% endblock %}
+{% block content %}
+<div class="card bg-white border-0 shadow-sm">
+  <div class="card-body">
+    <h4 class="card-title">Shared Post</h4>
+    <p class="text-muted">{{ post.caption }}</p>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{{ share_links.twitter }}" target="_blank">Share to Twitter</a>
+      <a class="btn btn-outline-secondary" href="{{ share_links.facebook }}" target="_blank">Share to Facebook</a>
+      <a class="btn btn-outline-success" href="{{ share_links.whatsapp }}" target="_blank">Share to WhatsApp</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

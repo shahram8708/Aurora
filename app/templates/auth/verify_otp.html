@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Verify Code{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h4 class="mb-3">Enter Verification Code</h4>
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">{{ form.otp.label(class_='form-label') }}{{ form.otp(class_='form-control') }}</div>
+          {{ form.submit(class_='btn btn-primary w-100') }}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

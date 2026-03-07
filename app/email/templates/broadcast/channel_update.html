@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Broadcast</div>
+  <div class="headline">Channel update</div>
+  <p class="body-text">Hi {{ user.name }}, there's a new update from your broadcast channel.</p>
+  <div class="card">
+    <div class="body-text">Update</div>
+    <div class="muted" style="margin-top:4px;">{{ update_summary or 'Open the channel to view the full announcement.' }}</div>
+  </div>
+  {% include "components/button.html" with context {"url": cta_url, "label": "Open channel"} %}
+  <p class="muted">Sent at {{ timestamp }}</p>
+{% endblock %}

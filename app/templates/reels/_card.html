@@ -1,0 +1,31 @@
+<div class="reel-item" data-reel-id="{{ reel.id }}" data-username="{{ reel.user.username if reel.user else '' }}" data-user-id="{{ reel.user_id }}">
+  <div class="reel-video-wrap">
+    <video class="reel-video" muted playsinline loop preload="metadata" poster="{{ reel.thumbnail_url }}" data-src="{{ reel.video_url }}"></video>
+    <div class="reel-like-burst" aria-hidden="true"></div>
+  </div>
+  <div class="reel-overlay">
+    <div class="reel-left">
+      <div class="reel-user">
+        <div class="reel-avatar" {% if reel.user and reel.user.profile_photo_url %}style="background-image:url('{{ reel.user.profile_photo_url }}')"{% endif %}></div>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <a class="reel-username reel-username-link text-decoration-none" data-user-id="{{ reel.user_id }}" href="{{ url_for('users.view_profile', user_id=reel.user_id) if reel.user_id else '#' }}">@{{ reel.user.username if reel.user else 'creator' }}</a>
+            {% if reel.is_promoted %}<span class="badge bg-warning text-dark">Promoted</span>{% endif %}
+          </div>
+          <div class="reel-audio">🎵 {{ reel.music.title if reel.music else 'Original audio' }}{% if reel.music and reel.music.artist %} · {{ reel.music.artist }}{% endif %}</div>
+        </div>
+      </div>
+      {% if reel.caption %}
+      <div class="reel-caption">{{ reel.caption }}</div>
+      {% endif %}
+      <div class="reel-audio-pill">{{ reel.music.title if reel.music else 'Original audio' }}</div>
+    </div>
+    <div class="reel-right">
+      <button type="button" class="reel-action" data-action="like" aria-label="Like" data-reel-id="{{ reel.id }}"><i class="bi bi-heart-fill me-1" aria-hidden="true"></i><span class="reel-like-count" data-reel-id="{{ reel.id }}">{{ reel.insights.like_count if reel.insights else 0 }}</span></button>
+      <button type="button" class="reel-action" data-action="comment" aria-label="Comments" data-reel-id="{{ reel.id }}"><i class="bi bi-chat-dots-fill me-1" aria-hidden="true"></i><span>{{ reel.insights.comment_count if reel.insights else 0 }}</span></button>
+      <button type="button" class="reel-action" data-action="share" aria-label="Share" data-reel-id="{{ reel.id }}"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+      <button type="button" class="reel-action" data-action="save" aria-label="Save" data-reel-id="{{ reel.id }}"><i class="bi bi-bookmark-fill" aria-hidden="true"></i></button>
+      <button type="button" class="reel-action" data-action="mute" aria-label="Toggle sound" data-reel-id="{{ reel.id }}"><i class="bi bi-volume-mute-fill" data-role="mute-icon" aria-hidden="true"></i></button>
+    </div>
+  </div>
+</div>

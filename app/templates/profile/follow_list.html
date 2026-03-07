@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}{{ target.username }} {{ list_type|capitalize }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="fw-semibold mb-0">{{ target.username }}</h4>
+    <p class="text-muted small mb-0 text-uppercase">{{ list_type }}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('users.view_profile', user_id=target.id) }}">Back to profile</a>
+</div>
+{% if not can_view %}
+  <div class="alert alert-warning shadow-sm">This account is private. Follow to see {{ list_type }}.</div>
+{% elif users %}
+  <div class="list-group shadow-sm">
+    {% for u in users %}
+    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="{{ url_for('users.view_profile', user_id=u.id) }}">
+      <div>
+        <div class="fw-semibold">{{ u.username }}</div>
+        <div class="text-muted small">{{ u.name }}</div>
+      </div>
+      <span class="badge bg-secondary">View</span>
+    </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-muted">No {{ list_type }} yet.</p>
+{% endif %}
+{% endblock %}

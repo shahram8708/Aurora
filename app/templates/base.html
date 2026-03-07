@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Aurora{% endblock %}</title>
+  <script>
+    window.isAuthenticated = {{ 'true' if current_user is defined and current_user.is_authenticated else 'false' }};
+    window.currentUserId = "{{ current_user.id if current_user is defined and current_user.is_authenticated else '' }}";
+  </script>
+  <script>
+    (()=>{
+      const stored = localStorage.getItem('theme') || '{{ config.get("THEME_DEFAULT","light") }}';
+      document.documentElement.setAttribute('data-bs-theme', stored);
+    })();
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+    <div class="container-fluid">
+      <button class="btn btn-outline-primary d-lg-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+        <i class="bi bi-list"></i>
+      </button>
+      <a class="navbar-brand fw-bold" href="{{ url_for('users.dashboard') }}">Aurora</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('feed.home') }}">Feed</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('users.dashboard') }}">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('explore.explore_home') }}">Explore</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('users.profile') }}">Profile</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('settings.settings_page') }}">Settings</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('posts.create') }}">Create</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('reels.reel_feed') }}">Reels</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('stories.list_my') }}">Stories</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('messaging.inbox') }}">Inbox</a></li>
+          <li class="nav-item dropdown">
+            <a id="notif-toggle" class="nav-link dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Notifications <span class="badge bg-danger" id="notif-count" style="display:none">0</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" id="notif-dropdown" style="min-width:320px; max-height:360px; overflow:auto;">
+              {% if notifications_preview %}
+                {% for n in notifications_preview[:5] %}
+                  <li>
+                    <a class="dropdown-item d-flex justify-content-between align-items-start" href="{{ notification_link(n) }}">
+                      <div>
+                        <div class="fw-semibold">{{ n.type.replace('_', ' ') }}</div>
+                        <div class="small text-muted">{{ notification_text(n) }}</div>
+                      </div>
+                      {% if not n.is_read %}<span class="badge bg-primary">New</span>{% endif %}
+                    </a>
+                  </li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-primary" href="{{ url_for('notifications.notifications_page') }}">View all</a></li>
+              {% else %}
+                <li><span class="dropdown-item text-muted">No notifications yet</span></li>
+              {% endif %}
+            </ul>
+          </li>
+        </ul>
+        {% if current_user is defined and current_user.is_authenticated %}
+        <form class="d-flex" method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-light btn-sm" type="submit">Logout</button>
+        </form>
+        {% else %}
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('auth.login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+  <main class="container py-4">
+    <div class="row">
+      <aside class="col-lg-3 d-none d-lg-block">
+        <div class="card shadow-sm mb-3">
+          <div class="list-group list-group-flush" id="sidebar-nav">
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navHome" aria-expanded="false" aria-controls="navHome">
+              <span class="small text-uppercase text-muted fw-semibold">Home</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navHome">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('feed.home') }}">Feed</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('users.dashboard') }}">Dashboard</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('explore.explore_home') }}">Explore</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('explore.explore_search') }}">Search</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('notifications.notifications_page') }}">Notifications</a>
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navProfile" aria-expanded="false" aria-controls="navProfile">
+              <span class="small text-uppercase text-muted fw-semibold">Profile</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navProfile">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('users.profile') }}">My Profile</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('users.edit_profile') }}">Edit Profile</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('settings.settings_page') }}">Settings</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('users.safety_center') }}">Safety Center</a>
+              {% if current_user is defined and current_user.is_authenticated %}
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('engagement.saved_posts') }}">Saved</a>
+              {% endif %}
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navCreate" aria-expanded="false" aria-controls="navCreate">
+              <span class="small text-uppercase text-muted fw-semibold">Create & Stories</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navCreate">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('posts.create') }}">Create Post</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.list_my') }}">My Stories</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.create') }}">Create Story</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('stories.highlights') }}">Highlights</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('reels.reel_feed') }}">Reels</a>
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navLive" aria-expanded="false" aria-controls="navLive">
+              <span class="small text-uppercase text-muted fw-semibold">Live</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navLive">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('live.create_live_page') }}">Go Live</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('live.browse_live') }}">Live Now</a>
+              <a class="list-group-item list-group-item-action ps-4" href="#" id="live-open-link">Open Live by Session ID</a>
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navMessaging" aria-expanded="false" aria-controls="navMessaging">
+              <span class="small text-uppercase text-muted fw-semibold">Messaging</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navMessaging">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('messaging.inbox') }}">Inbox</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('messaging.requests_page') }}">Message Requests</a>
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navBroadcast" aria-expanded="false" aria-controls="navBroadcast">
+              <span class="small text-uppercase text-muted fw-semibold">Broadcast</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navBroadcast">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('broadcast.broadcast_dashboard') }}">Broadcast Hub</a>
+            </div>
+
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navCommerce" aria-expanded="false" aria-controls="navCommerce">
+              <span class="small text-uppercase text-muted fw-semibold">Commerce</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navCommerce">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('shop.catalog') }}">Shop</a>
+              {% if current_user is defined and current_user.is_authenticated %}
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('commerce.cart_page') }}">Cart</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('shop.wishlist_page') }}">Wishlist</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('orders.history') }}">Orders</a>
+              {% if current_user.is_professional %}
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('orders.seller_dashboard') }}">Seller Dashboard</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('shop.product_new') }}">Create Product</a>
+              {% endif %}
+              {% endif %}
+            </div>
+
+            {% if current_user is defined and current_user.is_authenticated and current_user.is_professional %}
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navGrowth" aria-expanded="false" aria-controls="navGrowth">
+              <span class="small text-uppercase text-muted fw-semibold">Growth</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navGrowth">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('affiliate.dashboard') }}">Affiliate</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('monetization.marketplace_page') }}">Creator Marketplace</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('monetization.subscriptions_page') }}">Subscriptions</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('business.analytics_dashboard') }}#overview">Business Hub</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('business.analytics_dashboard') }}#content">Content Performance</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('business.analytics_dashboard') }}#ads">Ad Campaigns</a>
+            </div>
+            {% endif %}
+
+            {% if g is defined and g.get('admin_user') %}
+            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navAdmin" aria-expanded="false" aria-controls="navAdmin">
+              <span class="small text-uppercase text-muted fw-semibold">Admin</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse" id="navAdmin">
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('admin.admin_panel') }}">Admin Panel</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('admin.list_users') }}">Manage Users</a>
+              <a class="list-group-item list-group-item-action ps-4" href="{{ url_for('admin.list_reports') }}">Moderation</a>
+            </div>
+            {% endif %}
+
+            {% if current_user is defined and current_user.is_authenticated %}
+            <form method="post" action="{{ url_for('auth.logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="list-group-item list-group-item-action text-start" type="submit">Logout</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </aside>
+      <section class="col-lg-9">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </section>
+    </div>
+  </main>
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+    <div class="offcanvas-header border-bottom">
+      <div>
+        <div class="fw-bold" id="mobileSidebarLabel">Aurora</div>
+        <small class="text-muted">Quick navigation</small>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      <div class="list-group list-group-flush">
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Home</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('feed.home') }}" data-bs-dismiss="offcanvas">Feed</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('users.dashboard') }}" data-bs-dismiss="offcanvas">Dashboard</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('explore.explore_home') }}" data-bs-dismiss="offcanvas">Explore</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('explore.explore_search') }}" data-bs-dismiss="offcanvas">Search</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('notifications.notifications_page') }}" data-bs-dismiss="offcanvas">Notifications</a>
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Profile</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('users.profile') }}" data-bs-dismiss="offcanvas">My Profile</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('users.edit_profile') }}" data-bs-dismiss="offcanvas">Edit Profile</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_page') }}" data-bs-dismiss="offcanvas">Settings</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('users.safety_center') }}" data-bs-dismiss="offcanvas">Safety Center</a>
+        {% if current_user is defined and current_user.is_authenticated %}
+        <a class="list-group-item list-group-item-action" href="{{ url_for('engagement.saved_posts') }}" data-bs-dismiss="offcanvas">Saved</a>
+        {% endif %}
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Create &amp; Stories</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('posts.create') }}" data-bs-dismiss="offcanvas">Create Post</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('stories.list_my') }}" data-bs-dismiss="offcanvas">My Stories</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('stories.create') }}" data-bs-dismiss="offcanvas">Create Story</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('stories.highlights') }}" data-bs-dismiss="offcanvas">Highlights</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('reels.reel_feed') }}" data-bs-dismiss="offcanvas">Reels</a>
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Live</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('live.create_live_page') }}" data-bs-dismiss="offcanvas">Go Live</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('live.browse_live') }}" data-bs-dismiss="offcanvas">Live Now</a>
+        <a class="list-group-item list-group-item-action" href="#" id="live-open-link-mobile">Open Live by Session ID</a>
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Messaging</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('messaging.inbox') }}" data-bs-dismiss="offcanvas">Inbox</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('messaging.requests_page') }}" data-bs-dismiss="offcanvas">Message Requests</a>
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Broadcast</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('broadcast.broadcast_dashboard') }}" data-bs-dismiss="offcanvas">Broadcast Hub</a>
+
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Commerce</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('shop.catalog') }}" data-bs-dismiss="offcanvas">Shop</a>
+        {% if current_user is defined and current_user.is_authenticated %}
+        <a class="list-group-item list-group-item-action" href="{{ url_for('commerce.cart_page') }}" data-bs-dismiss="offcanvas">Cart</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('shop.wishlist_page') }}" data-bs-dismiss="offcanvas">Wishlist</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('orders.history') }}" data-bs-dismiss="offcanvas">Orders</a>
+        {% if current_user.is_professional %}
+        <a class="list-group-item list-group-item-action" href="{{ url_for('orders.seller_dashboard') }}" data-bs-dismiss="offcanvas">Seller Dashboard</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('shop.product_new') }}" data-bs-dismiss="offcanvas">Create Product</a>
+        {% endif %}
+        {% endif %}
+
+        {% if current_user is defined and current_user.is_authenticated and current_user.is_professional %}
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Growth</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('affiliate.dashboard') }}" data-bs-dismiss="offcanvas">Affiliate</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('monetization.marketplace_page') }}" data-bs-dismiss="offcanvas">Creator Marketplace</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('monetization.subscriptions_page') }}" data-bs-dismiss="offcanvas">Subscriptions</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('business.analytics_dashboard') }}#overview" data-bs-dismiss="offcanvas">Business Hub</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('business.analytics_dashboard') }}#content" data-bs-dismiss="offcanvas">Content Performance</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('business.analytics_dashboard') }}#ads" data-bs-dismiss="offcanvas">Ad Campaigns</a>
+        {% endif %}
+
+        {% if g is defined and g.get('admin_user') %}
+        <div class="px-3 pt-3 pb-1 text-uppercase text-muted small">Admin</div>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('admin.admin_panel') }}" data-bs-dismiss="offcanvas">Admin Panel</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('admin.list_users') }}" data-bs-dismiss="offcanvas">Manage Users</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('admin.list_reports') }}" data-bs-dismiss="offcanvas">Moderation</a>
+        {% endif %}
+
+        {% if current_user is defined and current_user.is_authenticated %}
+        <form class="px-3 py-3" method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-danger w-100" type="submit" data-bs-dismiss="offcanvas">Logout</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <nav class="navbar navbar-light bg-white fixed-bottom d-lg-none mobile-nav">
+    <div class="container-fluid justify-content-around">
+      <a class="nav-link text-center" href="{{ url_for('feed.home') }}" aria-label="Home"><i class="bi bi-house-door fs-4"></i><span class="visually-hidden">Home</span></a>
+      <a class="nav-link text-center" href="{{ url_for('explore.explore_home') }}" aria-label="Explore"><i class="bi bi-search fs-4"></i><span class="visually-hidden">Explore</span></a>
+      <a class="nav-link text-center" href="{{ url_for('posts.create') }}" aria-label="Create"><i class="bi bi-plus-circle fs-4"></i><span class="visually-hidden">Create</span></a>
+      <a class="nav-link text-center" href="{{ url_for('reels.reel_feed') }}" aria-label="Reels"><i class="bi bi-camera-reels fs-4"></i><span class="visually-hidden">Reels</span></a>
+      {% if current_user is defined and current_user.is_authenticated %}
+      <a class="nav-link text-center" href="{{ url_for('users.profile') }}" aria-label="Profile"><i class="bi bi-person-circle fs-4"></i><span class="visually-hidden">Profile</span></a>
+      {% else %}
+      <a class="nav-link text-center" href="{{ url_for('auth.login') }}" aria-label="Login"><i class="bi bi-box-arrow-in-right fs-4"></i><span class="visually-hidden">Login</span></a>
+      {% endif %}
+    </div>
+  </nav>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}?v=eng-debug2"></script>
+  <script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+  <script>
+    (() => {
+      const liveLink = document.getElementById('live-open-link');
+      if (!liveLink) return;
+      liveLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const sessionId = prompt('Enter live session ID');
+        if (sessionId) {
+          window.location.href = `/live/${sessionId}`;
+        }
+      });
+    })();
+  </script>
+  <script>
+    // Make sidebar accordion toggles work even if Bootstrap's data API fails to initialize
+    (() => {
+      const toggles = document.querySelectorAll('#sidebar-nav [data-bs-toggle="collapse"]');
+      toggles.forEach((btn) => {
+        const targetSelector = btn.getAttribute('data-bs-target');
+        const target = targetSelector ? document.querySelector(targetSelector) : null;
+        if (!target) return;
+        const collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          collapse.toggle();
+        });
+        // Close others when one opens for cleaner UX
+        target.addEventListener('show.bs.collapse', () => {
+          toggles.forEach((otherBtn) => {
+            if (otherBtn === btn) return;
+            const otherTarget = otherBtn.getAttribute('data-bs-target');
+            if (!otherTarget) return;
+            const otherEl = document.querySelector(otherTarget);
+            if (otherEl && otherEl.classList.contains('show')) {
+              bootstrap.Collapse.getOrCreateInstance(otherEl, { toggle: false }).hide();
+            }
+          });
+        });
+      });
+    })();
+  </script>
+  <script>
+    // Mobile offcanvas "open live by session" link
+    (() => {
+      const liveMobile = document.getElementById('live-open-link-mobile');
+      if (!liveMobile) return;
+      liveMobile.addEventListener('click', (e) => {
+        e.preventDefault();
+        const sessionId = prompt('Enter live session ID');
+        if (sessionId) {
+          window.location.href = `/live/${sessionId}`;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

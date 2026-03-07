@@ -1,0 +1,113 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Payouts{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-uppercase text-muted small mb-1">Creator earnings</p>
+    <h2 class="fw-bold text-dark mb-0">Payout Requests</h2>
+    <p class="text-muted mb-0">Approve or reject withdrawals and export CSV.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/payouts/export">Export CSV</a>
+    <a class="btn btn-outline-primary btn-sm" href="/admin/payouts?format=html">Refresh</a>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Total</small>
+      <div class="h4 mb-0">{{ summary.total }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Pending</small>
+      <div class="h4 mb-0">{{ summary.pending }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Approved</small>
+      <div class="h4 mb-0">{{ summary.approved }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card p-3">
+      <small class="text-uppercase text-muted">Rejected</small>
+      <div class="h4 mb-0">{{ summary.rejected }}</div>
+    </div>
+  </div>
+</div>
+<div class="card stat-card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0 text-dark">Latest Payouts</h5>
+    <span class="badge bg-secondary">/payouts</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle mb-0" id="payoutTable">
+      <thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Status</th><th>Processed</th><th class="text-end">Action</th></tr></thead>
+      <tbody>
+        {% if payouts %}
+          {% for p in payouts %}
+          <tr data-id="{{ p.id }}">
+            <td class="text-truncate" style="max-width:140px">{{ p.id }}</td>
+            <td>{{ p.user_id }}</td>
+            <td>₹{{ p.amount }}</td>
+            <td><span class="badge bg-{{ 'warning' if p.status=='pending' else 'success' if p.status=='approved' else 'danger' }}">{{ p.status }}</span></td>
+            <td class="text-muted small">{{ p.processed_at.strftime('%Y-%m-%d %H:%M') if p.processed_at else '-' }}</td>
+            <td class="text-end">
+              {% if p.status == 'pending' %}
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-success" data-action="approve">Approve</button>
+                <button class="btn btn-outline-danger" data-action="reject">Reject</button>
+              </div>
+              {% else %}
+              <span class="text-muted small">Closed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="6" class="text-center text-muted">No payout requests</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const table = document.getElementById('payoutTable');
+
+  async function act(id, action){
+    const payload = action === 'reject' ? {reason: prompt('Reason for rejection?', '') || ''} : null;
+    const resp = await fetch(`/admin/payouts/${id}/${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(text || 'Request failed');
+    }
+    location.reload();
+  }
+
+  table.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const row = btn.closest('tr[data-id]');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
+    act(id, btn.getAttribute('data-action')).catch((err) => alert(err.message));
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-semibold">Search</h3>
+  <form class="d-flex" action="{{ url_for('explore.explore_search') }}" method="get">
+    <input class="form-control me-2" name="q" placeholder="Search" value="{{ term }}" id="search-term">
+    <select class="form-select me-2" name="type">
+      <option value="">All</option>
+      <option value="users" {% if kind=='users' %}selected{% endif %}>Users</option>
+      <option value="posts" {% if kind=='posts' %}selected{% endif %}>Posts</option>
+      <option value="reels" {% if kind=='reels' %}selected{% endif %}>Reels</option>
+      <option value="hashtags" {% if kind=='hashtags' %}selected{% endif %}>Hashtags</option>
+    </select>
+    <button class="btn btn-outline-light" type="submit">Search</button>
+  </form>
+</div>
+<div class="row">
+  <div class="col-lg-8">
+    {% set hits = results.hits.hits if results else [] %}
+    {% if hits %}
+      <div class="list-group shadow-sm">
+        {% for hit in hits %}
+        {% set index_name = hit._index.split('-')[-1] if '-' in hit._index else hit._index %}
+        {% if index_name == 'users' %}
+          {% set href = url_for('users.view_profile', user_id=hit._id) %}
+          {% set label = hit._source.username or hit._source.name %}
+        {% elif index_name == 'reels' %}
+          {% set href = url_for('reels.detail', reel_id=hit._id) %}
+          {% set label = hit._source.caption or 'Reel' %}
+        {% elif index_name == 'posts' %}
+          {% set href = url_for('feed.home') %}
+          {% set label = hit._source.caption or 'Post' %}
+        {% elif index_name == 'hashtags' %}
+          {% set href = url_for('explore.explore_search') + '?q=%23' + hit._source.name %}
+          {% set label = '#' + hit._source.name %}
+        {% else %}
+          {% set href = '#' %}
+          {% set label = hit._source.username or hit._source.caption or hit._source.name %}
+        {% endif %}
+        <a class="list-group-item list-group-item-action bg-transparent" href="{{ href }}">
+          <div class="fw-semibold">{{ label }}</div>
+          <div class="text-muted small text-uppercase">{{ index_name }}</div>
+        </a>
+        {% endfor %}
+      </div>
+    {% elif term %}
+      <p class="text-muted">No results found.</p>
+    {% else %}
+      <p class="text-muted">Type to search.</p>
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="fw-semibold">Autocomplete</h6>
+        <ul class="list-group list-group-flush" id="autocomplete-results"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

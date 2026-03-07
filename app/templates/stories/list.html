@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block title %}Stories{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Stories</h4>
+    <p class="text-muted small mb-0">Yours and people you follow.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('stories.create') }}">Add Story</a>
+</div>
+<div class="row g-3">
+  {% for story in stories %}
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        {% if story.story_type != 'text' %}
+          <img src="{{ story.thumbnail_url or story.media_url }}" class="card-img-top" alt="story" loading="lazy">
+        {% endif %}
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div class="fw-semibold">
+              {{ story.user.username if story.user else 'User' }}
+              {% if viewer_id and story.user and story.user.id == viewer_id %}<span class="badge bg-primary ms-1">You</span>{% endif %}
+              {% if story.is_close_friends %}<span class="badge bg-success ms-1">Close Friends</span>{% endif %}
+            </div>
+            <span class="badge bg-secondary">{{ story.story_type|capitalize }}</span>
+          </div>
+          <p class="card-text">{{ story.text_content }}</p>
+          <button class="btn btn-outline-primary btn-sm open-story" data-story-id="{{ story.id }}" data-type="{{ story.story_type }}" data-media="{{ story.media_url }}" data-text="{{ story.text_content }}">View</button>
+          <span class="badge bg-secondary float-end">Expires {{ story.expires_at.strftime('%H:%M %b %d') }}</span>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="col-12"><div class="card"><div class="card-body">No active stories.</div></div></div>
+  {% endfor %}
+</div>
+<div class="modal fade" id="storyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Story</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="story-modal-body"></div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modalEl = document.getElementById('storyModal');
+  const modalBody = document.getElementById('story-modal-body');
+  const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+  const csrfHeaders = csrf ? {'X-CSRFToken': csrf, 'X-CSRF-Token': csrf} : {};
+  console.debug('[stories] DOM ready; csrf present:', !!csrf);
+
+
+  async function loadStory(id) {
+    if (!modalBody) return;
+    modalBody.innerHTML = '<div class="text-center py-4">Loading...</div>';
+    try {
+      const resp = await fetch(`/stories/viewer/${id}`, {
+        headers: {'X-Requested-With': 'XMLHttpRequest', ...csrfHeaders},
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error('story viewer load failed', resp.status, text);
+        throw new Error('Unable to load story');
+      }
+      const html = await resp.text();
+      modalBody.innerHTML = html;
+      bindStoryActions(modalBody, id);
+      if (modal) modal.show();
+      refreshMetrics(id, modalBody);
+    } catch (err) {
+      console.error('loadStory error', err);
+      modalBody.innerHTML = '<div class="text-danger">Failed to load story.</div>';
+    }
+  }
+
+  async function refreshMetrics(id, root) {
+    try {
+      const resp = await fetch(`/stories/${id}/metrics`, {credentials: 'same-origin', headers: csrfHeaders});
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error('metrics fetch failed', resp.status, text);
+        return;
+      }
+      const data = await resp.json();
+      const likeCountEl = root.querySelector('#story-like-count');
+      const viewCountEl = root.querySelector('#story-view-count');
+      if (likeCountEl && typeof data.like_count === 'number') likeCountEl.textContent = data.like_count;
+      if (viewCountEl && typeof data.view_count === 'number') viewCountEl.textContent = data.view_count;
+      const likedList = root.querySelector('[data-role="story-liked-list"]') || root.querySelector('#story-liked-list');
+      if (likedList && Array.isArray(data.likes)) {
+        likedList.innerHTML = '';
+        data.likes.forEach(l => {
+          const a = document.createElement('a');
+          a.className = 'text-decoration-none';
+          a.href = l.id ? `/users/${l.id}` : '#';
+          a.textContent = l.username || 'user';
+          likedList.appendChild(a);
+          likedList.appendChild(document.createTextNode(', '));
+        });
+        if (likedList.lastChild) likedList.removeChild(likedList.lastChild); // remove trailing comma
+      }
+    } catch (err) {
+      // silent
+    }
+  }
+
+  function bindStoryActions(root, storyId) {
+    const likeBtn = root.querySelector('[data-role="story-like"]') || root.querySelector('#story-like');
+    const likeCountEl = root.querySelector('[data-role="story-like-count"]') || root.querySelector('#story-like-count');
+    const viewCountEl = root.querySelector('[data-role="story-view-count"]') || root.querySelector('#story-view-count');
+    const replyForm = root.querySelector('[data-role="story-reply-form"]') || root.querySelector('#story-reply-form');
+    const repliesList = root.querySelector('[data-role="story-replies"]') || root.querySelector('#story-replies');
+    console.debug('[stories] bindStoryActions', {storyId, likeBtnFound: !!likeBtn, replyFormFound: !!replyForm});
+
+    if (likeBtn) {
+      likeBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.debug('[story-like/modal] click', {storyId});
+        try {
+          const resp = await fetch(`/stories/${storyId}/like`, {
+            method: 'POST',
+            headers: csrfHeaders,
+            credentials: 'same-origin',
+          });
+          console.debug('[story-like/modal] response status', resp.status);
+          const data = await resp.json();
+          console.debug('[story-like/modal] response body', data);
+          if (!resp.ok) throw new Error(data.error || 'Unable to like');
+          if (likeCountEl) likeCountEl.textContent = data.like_count;
+          likeBtn.classList.toggle('btn-primary', data.liked);
+          refreshMetrics(storyId, root);
+        } catch (err) {
+          console.error('like error', err);
+          alert(err.message);
+        }
+      });
+    }
+
+    if (replyForm && repliesList) {
+      replyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const content = replyForm.content.value.trim();
+        if (!content) return;
+        try {
+          const resp = await fetch(`/stories/${storyId}/reply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...csrfHeaders,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({content}),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Unable to reply');
+          const div = document.createElement('div');
+          div.className = 'mb-1';
+          const a = document.createElement('a');
+          a.className = 'text-white fw-semibold text-decoration-none';
+          a.textContent = data.user?.username || 'you';
+          a.href = data.user?.id ? `/users/${data.user.id}` : '#';
+          div.appendChild(a);
+          div.appendChild(document.createTextNode(`: ${data.content}`));
+          repliesList.prepend(div);
+          replyForm.reset();
+        } catch (err) {
+          console.error('reply error', err);
+          alert(err.message);
+        }
+      });
+    }
+
+    // When modal loads, view count is already incremented server-side. Fetch latest counts to reflect it.
+    if (viewCountEl) {
+      const current = parseInt(viewCountEl.textContent || '0', 10);
+      viewCountEl.textContent = (current + 0).toString();
+    }
+  }
+
+  document.querySelectorAll('.open-story').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = btn.dataset.storyId;
+      console.log('opening story', id);
+      if (id) loadStory(id);
+    });
+  });
+
+  // Fallback delegation: ensure like click is captured even if per-item binding fails.
+  if (modalBody) {
+    modalBody.addEventListener('click', async (e) => {
+      const likeBtn = e.target.closest('[data-role="story-like"],[id="story-like"]');
+      if (!likeBtn) return;
+      const storyId = likeBtn.dataset.storyId;
+      if (!storyId) return;
+      e.preventDefault();
+      console.debug('[story-like/delegated] click', {storyId});
+      try {
+        const resp = await fetch(`/stories/${storyId}/like`, {
+          method: 'POST',
+          headers: csrfHeaders,
+          credentials: 'same-origin',
+        });
+        console.debug('[story-like/delegated] response status', resp.status);
+        const data = await resp.json();
+        console.debug('[story-like/delegated] response body', data);
+        if (!resp.ok) throw new Error(data.error || 'Unable to like');
+        const likeCountEl = modalBody.querySelector('[data-role="story-like-count"],#story-like-count');
+        if (likeCountEl && typeof data.like_count === 'number') likeCountEl.textContent = data.like_count;
+        likeBtn.classList.toggle('btn-primary', data.liked);
+        refreshMetrics(storyId, modalBody);
+      } catch (err) {
+        console.error('like error (delegated)', err);
+        alert(err.message || 'Unable to like');
+      }
+    });
+
+    modalBody.addEventListener('submit', async (e) => {
+      const form = e.target.closest('[data-role="story-reply-form"],#story-reply-form');
+      if (!form) return;
+      e.preventDefault();
+      const storyId = form.dataset.storyId;
+      const content = form.elements?.content?.value?.trim?.();
+      console.debug('[story-reply/delegated] submit', {storyId, contentLength: content?.length});
+      if (!storyId || !content) return;
+      try {
+        const resp = await fetch(`/stories/${storyId}/reply`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...csrfHeaders,
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({content}),
+        });
+        console.debug('[story-reply/delegated] response status', resp.status);
+        const data = await resp.json();
+        console.debug('[story-reply/delegated] response body', data);
+        if (!resp.ok) throw new Error(data.error || 'Unable to reply');
+        const repliesList = modalBody.querySelector('[data-role="story-replies"],#story-replies');
+        if (repliesList) {
+          const div = document.createElement('div');
+          div.className = 'mb-1';
+          const a = document.createElement('a');
+          a.className = 'text-white fw-semibold text-decoration-none';
+          a.textContent = data.user?.username || 'you';
+          a.href = data.user?.id ? `/users/${data.user.id}` : '#';
+          div.appendChild(a);
+          div.appendChild(document.createTextNode(`: ${data.content}`));
+          repliesList.prepend(div);
+        }
+        form.reset();
+      } catch (err) {
+        console.error('reply error (delegated)', err);
+        alert(err.message || 'Unable to reply');
+      }
+    }, true);
+  }
+});
+</script>
+{% endblock %}

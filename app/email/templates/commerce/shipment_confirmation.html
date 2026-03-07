@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="eyebrow">Shipping</div>
+  <div class="headline">Your order is on the way</div>
+  <p class="body-text">Hi {{ user.name }}, your order shipped. Track it below.</p>
+  <div class="card">
+    <table role="presentation" width="100%">
+      <tr><td class="muted">Order</td><td style="text-align:right;" class="body-text">{{ order_id }}</td></tr>
+      <tr><td class="muted">Carrier</td><td style="text-align:right;" class="body-text">{{ carrier }}</td></tr>
+      <tr><td class="muted">Tracking</td><td style="text-align:right;" class="body-text">{{ tracking_number }}</td></tr>
+    </table>
+  </div>
+  {% include "components/button.html" with context {"url": tracking_url or cta_url, "label": "Track shipment"} %}
+  <p class="muted">If tracking does not update after 24h, reach out to the seller or support.</p>
+{% endblock %}

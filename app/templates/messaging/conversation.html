@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}{{ conversation_meta.display_name if conversation_meta else 'Conversation' }}{% endblock %}
+{% block content %}
+{% set meta = conversation_meta or {} %}
+{% set show_senders = meta.member_count and meta.member_count > 2 %}
+<div class="chat-layout" id="conversation-view" data-conversation-id="{{ conversation_id }}">
+  <div class="chat-pane">
+    <div class="chat-header d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="mb-0">{{ meta.display_name or 'Conversation' }}</h6>
+        {% if meta.other_user_id %}
+          <small class="text-muted"><a class="" href="{{ url_for('users.view_profile', user_id=meta.other_user_id) }}">{{ meta.subtitle }}</a></small>
+        {% elif meta.subtitle %}
+          <small class="text-muted">{{ meta.subtitle }}</small>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <div class="input-group input-group-sm" style="max-width: 220px;">
+          <span class="input-group-text"><i class="bi bi-palette"></i></span>
+          <select class="form-select form-select-sm" id="theme-select" data-endpoint="{{ url_for('messaging.update_theme', conversation_id=conversation_id) }}">
+            <option value="default">Default</option>
+            <option value="midnight">Midnight</option>
+            <option value="sunset">Sunset</option>
+            <option value="ocean">Ocean</option>
+          </select>
+        </div>
+        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addMembersModal">
+          <i class="bi bi-person-plus"></i><span>Add people</span>
+        </button>
+        <button class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" id="mark-read-btn">
+          <i class="bi bi-check2-circle"></i><span>Mark read</span>
+        </button>
+        <button class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#groupModal">
+          <i class="bi bi-people"></i><span>Members</span>
+        </button>
+      </div>
+    </div>
+    <div class="small text-muted" id="theme-status"></div>
+    <div class="chat-messages" id="chat-messages" data-last-ts="">
+      {% for m in messages %}
+      <div class="chat-bubble {% if m.sender_id == current_user.id %}sent{% else %}received{% endif %}" data-message-id="{{ m.id }}">
+        {% if show_senders %}
+        <div class="sender small fw-semibold">
+          <a class="link-body-emphasis" href="{{ url_for('users.view_profile', user_id=m.sender_id) }}">@{{ m.sender.username if m.sender else 'user' }}</a>
+        </div>
+        {% endif %}
+        {% if m.reply_to_id %}<div class="reply-ref small text-muted">Replying to {{ m.reply_to_id }}</div>{% endif %}
+        {% if m.message_type == 'text' %}
+        <div class="content">{{ m.content }}</div>
+        {% elif m.message_type in ['image','video','file','voice','gif'] %}
+        {% set label = 'Attachment' %}
+        {% if m.message_type == 'voice' %}{% set label = 'Voice message' %}{% endif %}
+        {% if m.message_type == 'gif' %}{% set label = 'GIF' %}{% endif %}
+        {% if m.message_type == 'image' %}{% set label = 'Image' %}{% endif %}
+        {% if m.message_type == 'video' %}{% set label = 'Video' %}{% endif %}
+        <div class="content"><a href="{{ m.media_url }}" target="_blank" class="text-info">{{ label }}</a></div>
+        {% else %}
+        <div class="content">{{ m.content or 'Unsupported message' }}</div>
+        {% endif %}
+        <div class="meta text-muted small d-flex gap-2 align-items-center">
+          <span>{{ m.created_at.strftime('%H:%M') }}</span>
+          <span class="reaction" data-reaction></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="chat-input shadow-sm">
+      <form id="chat-form" class="d-flex gap-2">
+        <input type="text" class="form-control" id="chat-text" placeholder="Message...">
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-sm btn-outline-light" id="attach-file">File</button>
+        <button class="btn btn-sm btn-outline-light" id="attach-voice">Voice</button>
+        <button class="btn btn-sm btn-outline-light" id="attach-gif">GIF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="groupModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Group Members</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div id="group-members" class="list-group small">
+          {% for m in meta.members or [] %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold"><a class="link-body-emphasis" href="{{ url_for('users.view_profile', user_id=m.id) }}">{{ m.name }}</a></div>
+              <div class="text-muted">@<a class="link-secondary" href="{{ url_for('users.view_profile', user_id=m.id) }}">{{ m.username }}</a></div>
+            </div>
+            <span class="badge bg-secondary">{{ m.role }}</span>
+          </div>
+          {% else %}
+          <div class="list-group-item text-muted">No members yet</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="gifModal" tabindex="-1" aria-labelledby="gifModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="gifModalLabel">GIFs</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <span class="input-group-text">Search</span>
+          <input type="text" class="form-control" id="gif-search" placeholder="Search GIFs (Tenor)">
+        </div>
+        <div id="gif-results" class="gif-grid"></div>
+        <div id="gif-empty" class="text-muted small d-none">No GIFs found.</div>
+        <div id="gif-loading" class="text-center py-3 d-none">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="add-members-form" data-endpoint="{{ url_for('messaging.add_members', conversation_id=conversation_id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title d-flex align-items-center gap-2" id="addMembersLabel"><i class="bi bi-person-plus-fill"></i><span>Add people</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="add-user-ids" class="form-label">Usernames or IDs</label>
+          <input type="text" class="form-control" id="add-user-ids" name="user_ids" placeholder="Comma separated usernames or IDs, e.g. alex,12,jo" required>
+          <div class="form-text">Members will be added to this conversation. You can mix usernames and numeric IDs.</div>
+          <div class="text-danger small d-none" id="add-members-error"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i><span>Add</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const themeSelect = document.getElementById('theme-select');
+    const themeStatus = document.getElementById('theme-status');
+    const addForm = document.getElementById('add-members-form');
+    const addError = document.getElementById('add-members-error');
+    const setStatus = (msg, isError = false) => {
+      if (!themeStatus) return;
+      themeStatus.textContent = msg || '';
+      themeStatus.classList.toggle('text-danger', isError);
+    };
+
+    if (themeSelect && themeSelect.dataset.endpoint) {
+      themeSelect.addEventListener('change', async () => {
+        const theme = themeSelect.value || 'default';
+        setStatus('Saving...');
+        try {
+          const resp = await fetch(themeSelect.dataset.endpoint, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({ theme }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.error) throw new Error(data.error || 'Theme update failed');
+          setStatus('Theme updated');
+        } catch (err) {
+          setStatus(err.message || 'Could not update theme', true);
+        }
+      });
+    }
+
+    if (addForm) {
+      const submitBtn = addForm.querySelector('button[type="submit"]');
+      addForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (addError) {
+          addError.textContent = '';
+          addError.classList.add('d-none');
+        }
+        const ids = (addForm.user_ids?.value || '').split(',').map((s) => s.trim()).filter(Boolean);
+        if (!ids.length) {
+          if (addError) {
+            addError.textContent = 'At least one username or ID is required.';
+            addError.classList.remove('d-none');
+          }
+          return;
+        }
+        const original = submitBtn?.innerHTML;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Adding...</span>';
+        }
+        try {
+          const resp = await fetch(addForm.dataset.endpoint, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({ user_ids: ids }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || data.error) throw new Error(data.error || 'Could not add members');
+          window.location.reload();
+        } catch (err) {
+          if (addError) {
+            addError.textContent = err.message || 'Failed to add members';
+            addError.classList.remove('d-none');
+          }
+        } finally {
+          if (submitBtn && original) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = original;
+          }
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

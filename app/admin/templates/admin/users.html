@@ -1,0 +1,240 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="text-dark">User Management</h3>
+  <form class="d-flex" method="get">
+    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="Search username/email" value="{{ query }}">
+    <button class="btn btn-primary btn-sm" type="submit">Search</button>
+  </form>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead><tr><th>Username</th><th>Email</th><th>Followers</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.follower_count }}</td>
+        <td>
+          {% if u.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-danger">Suspended</span>{% endif %}
+          {% if u.is_verified %}<span class="badge bg-info ms-1">Verified</span>{% endif %}
+        </td>
+        <td class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-warning" onclick="act('{{ u.id }}','suspend')">Suspend</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="act('{{ u.id }}','ban')">Ban</button>
+          <button class="btn btn-sm btn-outline-success" onclick="act('{{ u.id }}','restore')">Restore</button>
+          <button class="btn btn-sm btn-outline-info" onclick="act('{{ u.id }}','verify')">Verify</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="act('{{ u.id }}','force-password-reset')">Reset</button>
+          <button class="btn btn-sm btn-outline-dark" onclick="fetchActivity('{{ u.id }}')">Activity</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="fetchGrowth('{{ u.id }}')">Growth</button>
+          <button class="btn btn-sm btn-outline-success" onclick="fetchMonetization('{{ u.id }}')">Monetization</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="fetchStrikes('{{ u.id }}')">Strikes</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal fade" id="infoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="infoModalLabel">Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="infoModalBody" class="mb-0" style="background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  let infoModal;
+  let infoBody;
+
+  function ensureModal(){
+    if (!infoModal) {
+      const modalEl = document.getElementById('infoModal');
+      infoBody = document.getElementById('infoModalBody');
+      infoModal = new bootstrap.Modal(modalEl);
+    }
+  }
+
+  function renderGeneric(data){
+    if (data === null || data === undefined) return '<p class="text-muted mb-0">No data</p>';
+    if (Array.isArray(data) && data.length === 0) return '<p class="text-muted mb-0">No data</p>';
+    const escaped = document.createElement('pre');
+    escaped.className = 'mb-0';
+    escaped.style.whiteSpace = 'pre-wrap';
+    escaped.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    return escaped.outerHTML;
+  }
+
+  function renderActivity(sessions){
+    if (!sessions || sessions.length === 0) return '<p class="text-muted mb-0">No recent sessions</p>';
+    return sessions.map((s) => `
+      <div class="border rounded-3 p-3 mb-2" style="background:#fff">
+        <div class="d-flex justify-content-between">
+          <span class="fw-semibold">IP: ${s.ip || '-'} </span>
+          <span class="text-muted small">${s.last_seen_at || ''}</span>
+        </div>
+        <div class="text-muted small">${s.user_agent || ''}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderGrowth(g){
+    if (!g) return '<p class="text-muted mb-0">No growth data</p>';
+    return `
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Current</div>
+            <div class="h5 mb-0">${g.current ?? '-'}</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">30d Delta</div>
+            <div class="h5 mb-0">${g.delta_30d ?? '-'}</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">7d Delta</div>
+            <div class="h5 mb-0">${g.delta_7d ?? '-'}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMonetization(m){
+    if (!m) return '<p class="text-muted mb-0">No monetization data</p>';
+    return `
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Available</div>
+            <div class="h5 mb-0">${m.available_balance ?? 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Pending Payout</div>
+            <div class="h5 mb-0">${m.pending_payout ?? 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Lifetime Earnings</div>
+            <div class="h5 mb-0">${m.lifetime_earnings ?? 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Platform Fees</div>
+            <div class="h5 mb-0">${m.lifetime_platform_fees ?? 0}</div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="p-3 rounded-3 border bg-white">
+            <div class="text-muted small">Last Earning At</div>
+            <div class="mb-0">${m.last_earning_at || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderStrikes(rows){
+    if (!rows || rows.length === 0) return '<p class="text-muted mb-0">No strikes</p>';
+    return rows.map((s) => `
+      <div class="border rounded-3 p-3 mb-2" style="background:#fff">
+        <div class="d-flex justify-content-between">
+          <span class="fw-semibold">${s.reason || 'strike'}</span>
+          <span class="text-muted small">${s.created_at || ''}</span>
+        </div>
+        <div class="text-muted small">Severity: ${s.severity || 'n/a'}</div>
+      </div>
+    `).join('');
+  }
+
+  function showInfo(title, data){
+    ensureModal();
+    document.getElementById('infoModalLabel').textContent = title;
+    let html;
+    if (title === 'Recent Activity') html = renderActivity(data);
+    else if (title === 'Follower Growth') html = renderGrowth(data);
+    else if (title === 'Monetization') html = renderMonetization(data);
+    else if (title === 'Strikes') html = renderStrikes(data);
+    else html = renderGeneric(data);
+    infoBody.innerHTML = html;
+    infoModal.show();
+  }
+
+  function act(id, action){
+    fetch(`/admin/users/${id}/${action}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+    }).then((resp) => {
+      if (!resp.ok) {
+        return resp.text().then((t) => { throw new Error(t || 'Request failed'); });
+      }
+      if (action === 'force-password-reset') {
+        return resp.json().then((data) => {
+          alert('Reset token generated: ' + (data.reset_token || 'unknown'));
+        });
+      }
+      location.reload();
+    }).catch((err) => {
+      console.error('Action failed', err);
+      alert('Action failed: ' + err.message);
+    });
+  }
+
+  function fetchActivity(id){
+    fetch(`/admin/users/${id}/activity`, {credentials: 'same-origin'})
+      .then((resp) => resp.json())
+      .then((data) => showInfo('Recent Activity', data))
+      .catch((err) => alert('Failed to fetch activity: ' + err.message));
+  }
+
+  function fetchGrowth(id){
+    fetch(`/admin/users/${id}/follower-growth`, {credentials: 'same-origin'})
+      .then((resp) => resp.json())
+      .then((data) => showInfo('Follower Growth', data))
+      .catch((err) => alert('Failed to fetch growth: ' + err.message));
+  }
+
+  function fetchMonetization(id){
+    fetch(`/admin/users/${id}/monetization`, {credentials: 'same-origin'})
+      .then((resp) => resp.json())
+      .then((data) => showInfo('Monetization', data))
+      .catch((err) => alert('Failed to fetch monetization: ' + err.message));
+  }
+
+  function fetchStrikes(id){
+    fetch(`/admin/strikes/${id}`, {credentials: 'same-origin'})
+      .then((resp) => resp.json())
+      .then((data) => showInfo('Strikes', data))
+      .catch((err) => alert('Failed to fetch strikes: ' + err.message));
+  }
+
+  // expose to inline handlers
+  window.act = act;
+  window.fetchActivity = fetchActivity;
+  window.fetchGrowth = fetchGrowth;
+  window.fetchMonetization = fetchMonetization;
+  window.fetchStrikes = fetchStrikes;
+})();
+</script>
+{% endblock %}

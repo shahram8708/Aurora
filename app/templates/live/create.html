@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Go Live{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="card-title mb-3">Go Live</h5>
+    <form id="live-create-form" class="vstack gap-3">
+      <div>
+        <label class="form-label" for="live-title">Title</label>
+        <input class="form-control" id="live-title" name="title" placeholder="My live session" required>
+      </div>
+      <div>
+        <label class="form-label" for="live-description">Description</label>
+        <textarea class="form-control" id="live-description" name="description" rows="3" placeholder="What are you sharing?"></textarea>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <button type="submit" class="btn btn-primary" id="go-live-btn">
+          <i class="bi bi-broadcast-pin me-2"></i>
+          Go Live Now
+        </button>
+        <div class="text-muted small" id="live-status"></div>
+      </div>
+      <div class="alert alert-info d-none" id="stream-key-box">
+        <div class="fw-semibold">Stream Key</div>
+        <code id="stream-key"></code>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  (() => {
+    const form = document.getElementById('live-create-form');
+    const statusEl = document.getElementById('live-status');
+    const streamKeyBox = document.getElementById('stream-key-box');
+    const streamKeyEl = document.getElementById('stream-key');
+    const goBtn = document.getElementById('go-live-btn');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    async function createAndStartLive(evt) {
+      evt.preventDefault();
+      const title = document.getElementById('live-title').value.trim();
+      const description = document.getElementById('live-description').value.trim();
+      if (!title) {
+        statusEl.textContent = 'Title is required.';
+        return;
+      }
+      statusEl.textContent = 'Creating live...';
+      goBtn.disabled = true;
+      try {
+        const createResp = await fetch('/live/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          body: JSON.stringify({ title, description })
+        });
+        if (!createResp.ok) {
+          const errText = await createResp.text();
+          throw new Error(errText || 'Failed to create');
+        }
+        const created = await createResp.json();
+        streamKeyEl.textContent = created.stream_key;
+        streamKeyBox.classList.remove('d-none');
+
+        statusEl.textContent = 'Starting live...';
+        const startResp = await fetch(`/live/${created.id}/start`, { method: 'POST', headers: { 'X-CSRFToken': csrf } });
+        if (!startResp.ok) {
+          const errText = await startResp.text();
+          throw new Error(errText || 'Failed to start');
+        }
+        statusEl.textContent = 'Redirecting to live room...';
+        window.location.href = `/live/${created.id}`;
+      } catch (err) {
+        statusEl.textContent = err.message || 'Something went wrong';
+        goBtn.disabled = false;
+      }
+    }
+
+    form.addEventListener('submit', createAndStartLive);
+  })();
+</script>
+{% endblock %}
