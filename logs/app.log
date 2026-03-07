@@ -467,3 +467,4 @@ AttributeError: 'NoneType' object has no attribute 'id'
 2026-03-07 19:36:13,580 INFO [app] unread_count
 2026-03-07 19:36:19,867 INFO [app] unread_count
 2026-03-07 19:36:19,899 INFO [app] unread_count
+2026-03-07 19:36:28,474 INFO [app] unread_count

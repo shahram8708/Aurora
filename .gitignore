@@ -51,9 +51,12 @@ htmlcov/
 # Local files
 *.log
 *.sqlite3
+*.db
 tmp/
 uploads/
+local_uploads/
 media/
+logs/
 instance/
 
 # Flask / Alembic migrations
