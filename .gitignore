@@ -48,6 +48,14 @@ htmlcov/
 *.swp
 *.swo
 
+# Local files
+*.log
+*.sqlite3
+tmp/
+uploads/
+media/
+instance/
+
 # Flask / Alembic migrations
 migrations/
 
@@ -62,4 +70,5 @@ staticfiles/
 
 # OS generated
 .DS_Store
+Thumbs.db
 desktop.ini
