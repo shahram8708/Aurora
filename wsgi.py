@@ -1,3 +1,8 @@
+import eventlet
+
+# Patch standard library early so eventlet green threads work with Gunicorn's eventlet worker_class.
+eventlet.monkey_patch()
+
 from app import create_app
 
 app = create_app()
