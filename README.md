@@ -662,7 +662,7 @@ MAIL_DEFAULT_SENDER=no-reply@example.com
 ```env
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=https://aurora-ind.onrender.com/google/callback
+GOOGLE_REDIRECT_URI=http://127.0.0.1:5000/google/callback
 ```
 
 ### AWS S3

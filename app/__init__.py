@@ -22,32 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
 
-def _ensure_sqlite_db_path(app: Flask):
-    uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
-    if not uri.startswith("sqlite"):
-        return
-    if uri in {"sqlite://", "sqlite:///:memory:"}:
-        return
-
-    # Normalize the SQLite path and create its parent directory if needed.
-    if uri.startswith("sqlite:////"):
-        db_path = Path(uri.replace("sqlite:////", "/", 1))
-    else:
-        db_path = Path(uri.replace("sqlite:///", "", 1))
-
-    if not db_path.is_absolute():
-        db_path = (BASE_DIR / db_path).resolve()
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
-
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-
 def create_app(env: str | None = None):
     app = Flask(__name__)
     env_name = env or os.environ.get("FLASK_ENV", "development")
     app.config.from_object(get_config(env_name))
-
-    _ensure_sqlite_db_path(app)
 
     # Enable CORS for API use-cases; tightened origins should be configured via ENV.
     CORS(app, supports_credentials=True)
